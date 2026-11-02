@@ -1,4 +1,6 @@
 .ateval/
+.venv/
+*.egg-info/
 .env
 .env.*
 !.env.example

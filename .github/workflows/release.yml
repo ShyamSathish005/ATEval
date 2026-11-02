@@ -14,7 +14,7 @@ on:
         default: false
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   verify:
@@ -23,21 +23,26 @@ jobs:
 
   package:
     needs: verify
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - run: python -m pip install build cyclonedx-bom
-      - run: python -m pip install '.[ui-server,writing-docs]'
+      - run: python -m pip install --upgrade pip==26.2.2 uv==0.13.6
+      - name: Sync locked release dependencies
+        run: |
+          uv sync --locked --python 3.12 --extra ui-server --extra writing-docs --extra release
+          echo "$GITHUB_WORKSPACE/.venv/bin" >> "$GITHUB_PATH"
       - run: python -m build
       - working-directory: frontend
         run: npm ci && npm run build
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
       - run: docker build -t ateval:${{ inputs.tag }} .
       - run: docker save ateval:${{ inputs.tag }} -o ateval-docker-${{ inputs.tag }}.tar
       - run: git archive --format=tar.gz --prefix=ateval-${{ inputs.tag }}/ HEAD > ateval-source-${{ inputs.tag }}.tar.gz
@@ -46,7 +51,7 @@ jobs:
       - run: npm sbom --sbom-format cyclonedx > sbom-node.json
         working-directory: frontend
       - run: sha256sum dist/* ateval-source-${{ inputs.tag }}.tar.gz ateval-docker-${{ inputs.tag }}.tar sbom-python.json frontend/sbom-node.json > SHA256SUMS
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ateval-${{ inputs.tag }}
           path: |
@@ -56,16 +61,19 @@ jobs:
             sbom-python.json
             frontend/sbom-node.json
             SHA256SUMS
+          retention-days: 14
   publish:
     if: inputs.publish == true
     needs: package
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     environment: release
+    permissions:
+      contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: ateval-${{ inputs.tag }}
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ inputs.tag }}
           generate_release_notes: true

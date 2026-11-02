@@ -16,10 +16,14 @@ class ReleaseArchiveTests(unittest.TestCase):
             "ateval/experiments/milestone4_4/blind_key.json",
             "ateval/frontend/node_modules/package/LICENSE", "ateval/draft.tex",
             "ateval/checkpoint.gguf", "ateval/private.docx",
-            "ateval/docs/milestone_4_report.md",
+            "ateval/docs/release_audit.md",
         ):
             with self.subTest(path=path):
                 self.assertTrue(forbidden(path))
+
+    def test_research_and_migration_reports_are_safe_to_archive(self):
+        self.assertFalse(forbidden("ateval/docs/milestone_4_report.md"))
+        self.assertFalse(forbidden("ateval/docs/ci_failure_root_cause.md"))
 
     def test_archive_hygiene_passes_clean_and_reports_unsafe_members(self):
         with tempfile.TemporaryDirectory() as directory:
