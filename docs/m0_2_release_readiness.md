@@ -6,7 +6,7 @@
 
 ## Status
 
-**Not cleared for a formal release.** The pytest root cause is corrected and verified by hosted CI. Python 3.11, 3.12, 3.13, frontend and Docker jobs passed in run [41479922335](https://github.com/ShyamSathish005/ATEval/actions/runs/41479922335) for commit `518d56244b11897bbafba2a5bfb153f7717e5872`. Project ownership/release authority still requires confirmation from the project owner. No tag or release has been created.
+**Not cleared for a formal release.** The pytest root cause is corrected and verified by hosted CI. Python 3.11, 3.12, 3.13, frontend and Docker jobs passed in runs [41479922335](https://github.com/ShyamSathish005/ATEval/actions/runs/41479922335) and [41480358638](https://github.com/ShyamSathish005/ATEval/actions/runs/41480358638); the latter verified report commit `036e636d3667a841a580860a1787b4da19415ec5`. Project ownership/release authority still requires confirmation from the project owner. No tag or release has been created.
 
 ## Work completed
 
@@ -31,14 +31,14 @@
 | Docker image build | Passed in hosted run 41479922335 on Ubuntu 24.04 |
 | Archive hygiene | Committed source archive passed `scripts/check_release_archive.py` |
 | CLI smoke tests | `python -m ateval --help` and `python -m ateval doctor` passed; optional model/spaCy/LaTeX services are absent as expected |
-| GitHub Actions matrix | Passed in run 41479922335 on Ubuntu 24.04 for Python 3.11, 3.12, 3.13, frontend and Docker; release-gate was skipped for the feature-branch push |
+| GitHub Actions matrix | Passed in runs 41479922335 and 41480358638 on Ubuntu 24.04 for Python 3.11, 3.12, 3.13, frontend and Docker; release-gate was skipped for the feature-branch push |
 
 The optional Milestone 3 model-artifact test remains skipped because its trained artifact is intentionally absent. The local Python and npm advisory lookups passed after granting the audit commands registry access. Diagnostic pytest logs and JUnit XML are saved outside the repository under `/private/tmp/ateval-m0.2-logs/`.
 
 ## Required before formal release
 
 1. Confirm the authorship/permissions history and authority to release the project-authored work under MIT; resolve any third-party licence/provenance questions that confirmation reveals.
-2. Re-run CI after any follow-up commit; the current verified run is for `518d562`.
+2. Re-run CI after any follow-up implementation change; the latest completed run verified report commit `036e636`.
 3. Keep the release untagged until rights confirmation is documented.
 
 If the hosted result or authority confirmation is unavailable, keep the project unreleased and describe the remaining blocker accurately. Do not mark the package production-ready based on local test results alone.
