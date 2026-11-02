@@ -1,0 +1,5 @@
+[app]
+seed = 17
+offline = true
+log_level = "INFO"
+output_dir = "runs"

@@ -1,0 +1,51 @@
+schema_version: 1
+release: v0.1.0-alpha
+status: prepared_not_authorized
+policy: Exclude; preserve source workspace files. Reconsider only after rights and privacy review.
+exclude:
+  - path: .ateval/
+    reason: Local SQLite state, imported dataset copies, and workspace metadata.
+  - path: .env*
+    reason: May contain credentials or deployment secrets.
+  - path: frontend/.openai/
+    reason: Deployment-platform metadata; not application source.
+  - path: frontend/node_modules/
+    reason: Regenerable dependency tree; use the lockfile.
+  - path: frontend/dist/
+    reason: Regenerable build output.
+  - path: frontend/*.tsbuildinfo
+    reason: Local compiler cache.
+  - path: frontend/public/design-option-3.png
+    reason: Unused design asset with unverified provenance.
+  - path: data/
+    reason: Includes third-party raw and derived corpus text, manifests, and annotations.
+  - path: models/
+    reason: Fitted artifacts/checkpoints with third-party and pickle-security concerns.
+  - path: reports/
+    reason: May contain source excerpts, generated text, or private research annotations.
+  - path: experiments/
+    reason: May contain blind keys, reviewer annotations, or third-party source text.
+  - path: "*.sqlite3"
+    reason: Local application database.
+  - path: "*.log"
+    reason: Runtime logs may reveal file names or environment details.
+  - path: "*.pdf"
+    reason: May be user manuscripts or third-party research documents.
+  - path: "*.docx"
+    reason: May be user manuscripts.
+  - path: "*.tex"
+    reason: May be user manuscripts.
+  - path: "*.zip"
+    reason: May be project archives or upload fixtures.
+include_only_after_review:
+  - ateval/
+  - frontend/src/
+  - frontend/public/
+  - frontend/package-lock.json
+  - LICENSE
+  - NOTICE
+  - THIRD_PARTY_NOTICES.md
+  - MODEL_LICENSES.md
+  - DATASET_LICENSES.md
+  - README.md
+  - docs/

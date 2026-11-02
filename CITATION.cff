@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "Please cite ATEval as software and cite the specific datasets and methods used in your study."
+title: ATEval
+version: 0.1.0-alpha
+type: software
+license: MIT
+abstract: >-
+  A local-first research prototype for academic manuscript analysis and
+  experimental evaluation of text editing methods. ATEval is not a validated
+  AI-writing detector or production-ready academic editing system.

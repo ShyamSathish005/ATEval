@@ -1,0 +1,78 @@
+name: Alpha release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag (must be v0.1.0-alpha for the first alpha)
+        required: true
+        default: v0.1.0-alpha
+      publish:
+        description: Publish a GitHub release after the approval gate
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/main' && inputs.tag == 'v0.1.0-alpha'
+    uses: ./.github/workflows/ci.yml
+
+  package:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: python -m pip install build cyclonedx-bom
+      - run: python -m pip install '.[ui-server,writing-docs]'
+      - run: python -m build
+      - working-directory: frontend
+        run: npm ci && npm run build
+      - uses: docker/setup-buildx-action@v3
+      - run: docker build -t ateval:${{ inputs.tag }} .
+      - run: docker save ateval:${{ inputs.tag }} -o ateval-docker-${{ inputs.tag }}.tar
+      - run: git archive --format=tar.gz --prefix=ateval-${{ inputs.tag }}/ HEAD > ateval-source-${{ inputs.tag }}.tar.gz
+      - run: python scripts/check_release_archive.py ateval-source-${{ inputs.tag }}.tar.gz
+      - run: cyclonedx-py environment --output-file sbom-python.json
+      - run: npm sbom --sbom-format cyclonedx > sbom-node.json
+        working-directory: frontend
+      - run: sha256sum dist/* ateval-source-${{ inputs.tag }}.tar.gz ateval-docker-${{ inputs.tag }}.tar sbom-python.json frontend/sbom-node.json > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ateval-${{ inputs.tag }}
+          path: |
+            dist/*
+            ateval-source-${{ inputs.tag }}.tar.gz
+            ateval-docker-${{ inputs.tag }}.tar
+            sbom-python.json
+            frontend/sbom-node.json
+            SHA256SUMS
+  publish:
+    if: inputs.publish == true
+    needs: package
+    runs-on: ubuntu-latest
+    environment: release
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ateval-${{ inputs.tag }}
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          generate_release_notes: true
+          files: |
+            dist/*
+            ateval-source-${{ inputs.tag }}.tar.gz
+            ateval-docker-${{ inputs.tag }}.tar
+            sbom-python.json
+            frontend/sbom-node.json
+            SHA256SUMS

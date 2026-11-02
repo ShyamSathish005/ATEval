@@ -1,0 +1,11 @@
+ATEval
+
+Copyright ownership and contributor authority for this workspace have not yet
+been verified. The existing LICENSE file is preserved as supplied. This NOTICE
+does not grant rights beyond those established by a verified project license.
+Resolve ownership and the intended project license before public release.
+
+Third-party components and research assets are documented separately in
+THIRD_PARTY_NOTICES.md, MODEL_LICENSES.md, and DATASET_LICENSES.md. No third-party
+model weights or raw research datasets are included in the release Docker
+context or Python source distribution.

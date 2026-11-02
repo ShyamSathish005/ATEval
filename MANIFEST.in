@@ -1,0 +1,21 @@
+include README.md LICENSE NOTICE THIRD_PARTY_NOTICES.md MODEL_LICENSES.md DATASET_LICENSES.md
+include CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md PRIVACY.md CITATION.cff CHANGELOG.md
+include docs/installation.md docs/quick_start.md docs/troubleshooting.md
+include docs/architecture.md docs/known_limitations.md docs/research_methodology.md
+include docs/release_checklist.md docs/release_exclusion_manifest.yaml
+include docs/os_installation.md docs/public_demo_deployment.md
+recursive-include config *.toml
+recursive-include ateval *.py
+recursive-include frontend *.ts *.tsx *.css *.html *.mjs *.json
+exclude frontend/public/design-option-3.png
+prune data
+prune models
+prune reports
+prune experiments
+prune frontend/node_modules
+prune frontend/dist
+prune frontend/.openai
+prune frontend/.vite
+prune .ateval
+global-exclude *.joblib *.pt *.pth *.safetensors *.gguf *.sqlite3 *.db *.log *.pdf *.docx *.tex *.zip
+global-exclude blind_key.json reviewer_annotations.jsonl
