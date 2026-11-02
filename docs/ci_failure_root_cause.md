@@ -34,8 +34,8 @@ Added a pinned `httpx2==2.16.0` test dependency in the `ci` extra and added a co
 
 No model, research algorithm, test expectation, or failure condition was changed to obtain a passing result. No tests were marked `xfail`, skipped, or suppressed as part of this fix.
 
-## Verification and remaining check
+## Verification
 
 With the lockfile and CI extras, Python 3.11, 3.12 and 3.13 each report **82 passed, 1 skipped, 17 subtests passed** locally. The one skipped test requires trained Milestone 3 model artifacts, which are not part of the repository. Ruff passes in each environment. Logs and JUnit XML are retained outside the repository at `/private/tmp/ateval-m0.2-logs/final-3.11.*`, `final-3.12.*`, and `final-3.13.*`.
 
-The dedicated branch must complete an actual hosted GitHub Actions run before the CI blocker can be considered closed. Local macOS results are not a substitute for the Ubuntu runner matrix.
+Hosted run [41479922335](https://github.com/ShyamSathish005/ATEval/actions/runs/41479922335), for commit `518d56244b11897bbafba2a5bfb153f7717e5872`, completed successfully on Ubuntu 24.04. Python 3.11, 3.12 and 3.13, frontend, and Docker jobs all passed. The release-gate job was skipped because the push was to the dedicated feature branch, not `main` or a pull request. This closes the CI blocker for the verified commit; any follow-up commit will trigger another run.

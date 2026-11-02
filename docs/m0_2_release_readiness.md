@@ -6,7 +6,7 @@
 
 ## Status
 
-**Not cleared for a formal release.** The root cause has been reproduced and corrected locally. All three Python versions pass the locked local test run. The dedicated branch still needs a completed hosted GitHub Actions run, and project ownership/release authority requires confirmation from the project owner. No tag or release has been created.
+**Not cleared for a formal release.** The pytest root cause is corrected and verified by hosted CI. Python 3.11, 3.12, 3.13, frontend and Docker jobs passed in run [41479922335](https://github.com/ShyamSathish005/ATEval/actions/runs/41479922335) for commit `518d56244b11897bbafba2a5bfb153f7717e5872`. Project ownership/release authority still requires confirmation from the project owner. No tag or release has been created.
 
 ## Work completed
 
@@ -28,18 +28,17 @@
 | Python dependency audit | Passed against the hash-locked third-party requirements export; no known vulnerabilities found |
 | Frontend tests and production build | `npm run build` passed; all 6 `npm run test:sites` tests passed |
 | Frontend dependency audit | `npm audit --audit-level=high` passed; 0 vulnerabilities |
-| Docker image build | Not run locally; Docker CLI is unavailable. The previous hosted run built Docker successfully, but this branch's updated workflow still needs hosted verification |
+| Docker image build | Passed in hosted run 41479922335 on Ubuntu 24.04 |
 | Archive hygiene | Committed source archive passed `scripts/check_release_archive.py` |
 | CLI smoke tests | `python -m ateval --help` and `python -m ateval doctor` passed; optional model/spaCy/LaTeX services are absent as expected |
-| GitHub Actions matrix | Pending branch push and hosted execution; local platform is macOS ARM, while CI is pinned to Ubuntu 24.04 |
+| GitHub Actions matrix | Passed in run 41479922335 on Ubuntu 24.04 for Python 3.11, 3.12, 3.13, frontend and Docker; release-gate was skipped for the feature-branch push |
 
 The optional Milestone 3 model-artifact test remains skipped because its trained artifact is intentionally absent. The local Python and npm advisory lookups passed after granting the audit commands registry access. Diagnostic pytest logs and JUnit XML are saved outside the repository under `/private/tmp/ateval-m0.2-logs/`.
 
 ## Required before formal release
 
-1. Push this branch and confirm the actual Python 3.11, 3.12 and 3.13 GitHub Actions jobs pass, along with frontend and Docker jobs.
-2. Confirm the actual hosted workflow results. Frontend build/tests, both dependency audits, CLI smoke tests, and the committed source archive hygiene check pass locally.
-3. Obtain owner confirmation of file authorship/permissions and authority to release the project-authored work under MIT; resolve any third-party licence/provenance questions that confirmation reveals.
-4. Update the migration/readiness report with the hosted CI run and resolved or remaining rights findings.
+1. Confirm the authorship/permissions history and authority to release the project-authored work under MIT; resolve any third-party licence/provenance questions that confirmation reveals.
+2. Re-run CI after any follow-up commit; the current verified run is for `518d562`.
+3. Keep the release untagged until rights confirmation is documented.
 
 If the hosted result or authority confirmation is unavailable, keep the project unreleased and describe the remaining blocker accurately. Do not mark the package production-ready based on local test results alone.
