@@ -1,6 +1,6 @@
 # ATEval Milestone 4 report
 
-**Run date:** 2026-11-01
+**Run date:** 2026-11-01  
 **Scope:** audit M3 intention results, research four additional resources, implement a context-aware generation path, and benchmark available systems without inventing unavailable results.
 
 ## Completed

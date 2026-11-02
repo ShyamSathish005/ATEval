@@ -599,3 +599,4 @@ def proposal_for_record(record: Any, generator: TextGenerator) -> AcademicRevisi
         relevant_citations=tuple(re.findall(r"\\(?:cite[a-zA-Z*]*|ref|eqref)\s*(?:\[[^\]]*\]\s*)*\{[^}]*\}|\[[^\]]+\]|\([A-Z][^)]*\b(?:19|20)\d{2}[a-z]?\)", record.original_text)),
     )
     return generator.generate(request)
+

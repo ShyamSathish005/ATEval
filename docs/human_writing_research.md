@@ -1,7 +1,7 @@
 # Human Writing and Academic Editing Research Review
 
-**Review date:** 2026-11-01
-**Scope:** evidence for a local academic writing assistant that diagnoses clarity and presents author-controlled revisions.
+**Review date:** 2026-11-01  
+**Scope:** evidence for a local academic writing assistant that diagnoses clarity and presents author-controlled revisions.  
 **Non-goal:** classifying authorship, imitating a generic “human style”, or optimizing against AI-detector scores.
 
 ## Review method and limits

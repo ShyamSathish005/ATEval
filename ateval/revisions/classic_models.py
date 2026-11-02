@@ -174,7 +174,10 @@ def train_compare(
     if not train or not dev or not test:
         raise ValueError("All train, development, and held-out test partitions must contain records")
     source_counts = {name: len(records) for name, records in (("train", train), ("dev", dev), ("test", test))}
-    is_noop = lambda record: " ".join(unicodedata.normalize("NFKC", record.original_text).casefold().split()) == " ".join(unicodedata.normalize("NFKC", record.revised_text).casefold().split())
+    def is_noop(record: RevisionRecord) -> bool:
+        original = " ".join(unicodedata.normalize("NFKC", record.original_text).casefold().split())
+        revised = " ".join(unicodedata.normalize("NFKC", record.revised_text).casefold().split())
+        return original == revised
     no_op_counts = {name: sum(is_noop(record) for record in records) for name, records in (("train", train), ("dev", dev), ("test", test))}
     train, dev, test = ([record for record in records if not is_noop(record)] for records in (train, dev, test))
     _ = platform.python_version()

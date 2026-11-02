@@ -1,7 +1,7 @@
 # Literature review and paper registry
 
-**Registry status:** initial research map, not a completed systematic review.
-**Review date:** 2026-11-01.
+**Registry status:** initial research map, not a completed systematic review.  
+**Review date:** 2026-11-01.  
 **Scope:** academic and technical text detection, benchmark validity, robustness, fairness, watermarking, and abstention/calibration.
 
 ## Review method and evidence limits

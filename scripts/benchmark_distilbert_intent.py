@@ -17,6 +17,7 @@ import numpy as np
 
 from ateval.revisions.classic_models import _calibration, _labels, _macro_weighted, context_text
 from ateval.revisions.datasets import load_iterater
+from ateval.revisions.schema import RevisionRecord
 
 MODEL_ID = "distilbert/distilbert-base-uncased"
 MODEL_REVISION = "12040accade4e8a0f71eabdb258fecc2e7e948be"
@@ -79,7 +80,8 @@ def run(args: argparse.Namespace) -> dict:
     test = load(args.test, args.test_documents, "test")
     if set(r.source_document_id for r in train) & (set(r.source_document_id for r in dev + test)) or set(r.source_document_id for r in dev) & set(r.source_document_id for r in test):
         raise ValueError("source-document leakage across train/dev/test")
-    is_noop = lambda record: " ".join(record.original_text.casefold().split()) == " ".join(record.revised_text.casefold().split())
+    def is_noop(record: RevisionRecord) -> bool:
+        return " ".join(record.original_text.casefold().split()) == " ".join(record.revised_text.casefold().split())
     before_counts = {name: len(rows) for name, rows in (("train", train), ("dev", dev), ("test", test))}
     noop_counts = {name: sum(map(is_noop, rows)) for name, rows in (("train", train), ("dev", dev), ("test", test))}
     train = [r for r in train if not is_noop(r)]

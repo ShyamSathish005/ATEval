@@ -1,7 +1,7 @@
 # IteraTeR-HUMAN dataset ingestion report
 
-**Ingestion date:** 2026-11-01
-**Dataset used:** IteraTeR-HUMAN sentence and document exports.
+**Ingestion date:** 2026-11-01  
+**Dataset used:** IteraTeR-HUMAN sentence and document exports.  
 **Status:** source exports retained byte-for-byte; processed copies and manifests are versioned separately.
 
 ## Sources and terms

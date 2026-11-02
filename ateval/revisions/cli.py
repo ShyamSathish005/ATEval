@@ -141,7 +141,9 @@ def _validate_grouped_test_manifest(test_file: str, test_documents: str | None, 
     manifest_path = Path(manifest_file).expanduser().resolve()
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     project_root = manifest_path.parent.parent.parent
-    resolve_recorded = lambda value: (project_root / value).resolve() if not Path(value).is_absolute() else Path(value).resolve()
+    def resolve_recorded(value: str) -> Path:
+        recorded_path = Path(value)
+        return (project_root / recorded_path).resolve() if not recorded_path.is_absolute() else recorded_path.resolve()
     expected_test = resolve_recorded(manifest["processed_sentence_file"])
     expected_docs = resolve_recorded(manifest["processed_document_file"])
     actual_test = Path(test_file).expanduser().resolve()

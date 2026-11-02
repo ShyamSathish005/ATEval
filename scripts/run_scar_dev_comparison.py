@@ -157,7 +157,8 @@ def _run() -> int:
     with PREDICTIONS.open("x", encoding="utf-8") as stream:
         for item in output_rows:
             stream.write(json.dumps(item, ensure_ascii=False) + "\n")
-    latency = lambda key: [float(item[key].get("elapsed_seconds", 0)) for item in output_rows if item.get(key)]
+    def latency(key: str) -> list[float]:
+        return [float(item[key].get("elapsed_seconds", 0)) for item in output_rows if item.get(key)]
     full_latencies = latency("full_inference")
     scar_latencies = latency("scar_inference")
     report = {

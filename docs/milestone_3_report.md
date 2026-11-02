@@ -1,8 +1,8 @@
 # ATEval Milestone 3 report
 
-**Status:** implemented and evaluated as an initial local research baseline. This is not a validated academic editor.
-**Run date:** 2026-11-01
-**Dataset:** IteraTeR-HUMAN; Apache-2.0 as declared on its public dataset cards.
+**Status:** implemented and evaluated as an initial local research baseline. This is not a validated academic editor.  
+**Run date:** 2026-11-01  
+**Dataset:** IteraTeR-HUMAN; Apache-2.0 as declared on its public dataset cards.  
 **Reproduction config:** [`experiments/iterater-human-document-grouped-classical-intent-v1.json`](../experiments/iterater-human-document-grouped-classical-intent-v1.json).
 
 ## Implemented

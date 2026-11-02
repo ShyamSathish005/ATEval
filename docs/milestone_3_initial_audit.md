@@ -1,6 +1,6 @@
 # Milestone 3: Milestone 2 implementation audit
 
-**Audit date:** 2026-11-01
+**Audit date:** 2026-11-01  
 **Scope:** the repository state before this milestone's dataset and model additions.
 
 ## Findings

@@ -1,7 +1,7 @@
 # Extended academic revision research
 
-**Reviewed:** 2026-11-01
-**Scope:** XtraGPT, Re3-Sci2.0, CASIMIR, EditEval, and reproducible generation baselines
+**Reviewed:** 2026-11-01  
+**Scope:** XtraGPT, Re3-Sci2.0, CASIMIR, EditEval, and reproducible generation baselines  
 **Decision:** prioritize a locally wrapped published academic editor (XtraGPT 1.5B) once model weights are available; do not start alternative fine-tuning until data rights and a human-evaluation protocol are resolved.
 
 ## Executive summary

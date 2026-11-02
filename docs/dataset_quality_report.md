@@ -1,7 +1,7 @@
 # IteraTeR-HUMAN grouped dataset quality report
 
-**Date:** 2026-11-01
-**Source:** public IteraTeR-HUMAN exports, sentence/document data; details and terms in [`dataset_ingestion_report.md`](dataset_ingestion_report.md).
+**Date:** 2026-11-01  
+**Source:** public IteraTeR-HUMAN exports, sentence/document data; details and terms in [`dataset_ingestion_report.md`](dataset_ingestion_report.md).  
 **Audit data:** [`data/manifests/revision_dataset_audit.json`](../data/manifests/revision_dataset_audit.json).
 
 ## Grouped partitions

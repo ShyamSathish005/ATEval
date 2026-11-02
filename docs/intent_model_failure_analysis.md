@@ -1,7 +1,7 @@
 # Milestone 3 intent model failure analysis
 
-**Status:** audit complete before any model-size increase
-**Evidence:** saved M3 manifests, configuration, sklearn artifacts, held-out comparison and DistilBERT run
+**Status:** audit complete before any model-size increase  
+**Evidence:** saved M3 manifests, configuration, sklearn artifacts, held-out comparison and DistilBERT run  
 **Outcome under investigation:** best held-out macro-F1 = **0.2050**, full-document TF-IDF + balanced logistic regression
 
 ## Finding
