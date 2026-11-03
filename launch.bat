@@ -2,7 +2,7 @@
 setlocal enabledelayedexpansion
 
 REM ATEval desktop automated launcher (Windows)
-REM Automates virtual environment setup, package installation, frontend build,
+REM Automates virtual environment setup, package installation, frontend setup,
 REM doctor diagnostics, and server launch.
 
 echo ==========================================================
@@ -61,7 +61,7 @@ echo [1/5] Using Python: !PYTHON_CMD!
 REM 2. Check Node.js / npm
 where npm >nul 2>nul
 if !errorlevel! neq 0 (
-    echo [WARNING] Node.js / npm not found. Node.js is required to build the frontend.
+    echo [WARNING] Node.js / npm not found. The packaged frontend will be used when available.
     echo Download from https://nodejs.org/ if frontend needs compilation.
 )
 
@@ -82,7 +82,7 @@ echo [3/5] Installing dependencies...
 "%VENV_PYTHON%" -m pip install -e ".[ui-server,writing-docs]" --quiet
 
 REM 5. Build Frontend if missing
-if not exist "frontend\dist\client\index.html" (
+if not exist "frontend\dist\client\index.html" if not exist "ateval\static\index.html" (
     where npm >nul 2>nul
     if !errorlevel! equ 0 (
         echo [4/5] Building frontend workspace...

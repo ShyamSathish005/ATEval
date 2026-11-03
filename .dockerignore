@@ -12,6 +12,8 @@ __pycache__
 !.env.example
 frontend/node_modules
 frontend/dist
+frontend/.cache
+frontend/.eslintcache
 frontend/.vite
 frontend/.openai
 frontend/*.tsbuildinfo
@@ -25,3 +27,16 @@ reports
 *.docx
 *.tex
 *.zip
+*.tar
+*.tar.gz
+*.gguf
+*.safetensors
+*.ckpt
+*.pt
+*.pth
+*.joblib
+user_uploads
+uploads
+exports
+annotations
+private

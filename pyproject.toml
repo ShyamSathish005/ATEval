@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ateval"
-version = "0.1.0a0"
+version = "0.1.0a1"
 description = "Local-first framework for reproducible academic text evaluation research"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -55,6 +55,9 @@ ateval = "ateval.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["ateval*"]
+
+[tool.setuptools.package-data]
+ateval = ["static/**/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
