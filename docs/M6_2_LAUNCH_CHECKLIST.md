@@ -2,10 +2,10 @@
 
 ## Repository
 
-- [ ] M6.1 changes are committed and pushed on their own branch.
-- [ ] M6.2 branch is reviewed; no direct merge to `main`.
+- [x] M6.1 changes are committed, reviewed, and integrated into `main`.
+- [x] M6.2 branch changes are reviewed and integrated without a direct unreviewed merge to `main`.
 - [ ] M5.1/M5.2 manifests and reports are unchanged.
-- [ ] CI is green for Python, frontend, Docker, and release gates.
+- [x] CI is green for Python, frontend, Docker image, and release gates.
 
 ## Local functionality
 
@@ -35,7 +35,7 @@
 
 - [x] macOS installer and loopback launcher are provided.
 - [x] Manual Windows/Linux instructions are provided without claiming support.
-- [ ] macOS installer has been run on a clean machine.
+- [x] macOS installer has been run in a clean local environment; a separate clean-machine test remains unavailable.
 - [ ] Docker build and Compose lifecycle have been run.
 - [ ] Landing/demo copy and screenshots are reviewed against the running app.
 

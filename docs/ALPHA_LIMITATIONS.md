@@ -2,8 +2,9 @@
 
 ATEval is an experimental alpha. Human review is required.
 
-- Real-model generation is not launch-ready until the local-model smoke test
-  passes on a declared configuration.
+- The verified real-model configuration is macOS + loopback Ollama +
+  `ateval-xtragpt-1_5b-q8_0`; generation remains a proposal requiring author
+  review.
 - Automated preservation checks are conservative diagnostics, not semantic
   equivalence.
 - Writing quality and coherence have not been established by completed expert
@@ -13,7 +14,8 @@ ATEval is an experimental alpha. Human review is required.
 - Browser-session undo history is not durable and does not survive refresh.
 - The AI-writing evaluator is a weak research preview (AUROC 0.5541 and human
   FPR 0.2467 in the documented TXD-22 evaluation), not a validated detector.
-- Windows, Linux, and Docker require separate environment validation.
+- Windows, Linux, and Docker Compose are unverified and unsupported for this
+  alpha.
 
 Do not use ATEval to make authorship, misconduct, academic-integrity, or
 detector-evasion decisions.
