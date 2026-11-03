@@ -6,6 +6,7 @@ include docs/release_checklist.md docs/release_exclusion_manifest.yaml
 include docs/os_installation.md docs/public_demo_deployment.md
 recursive-include config *.toml
 recursive-include ateval *.py
+recursive-include ateval/static *
 recursive-include frontend *.ts *.tsx *.css *.html *.mjs *.json
 exclude frontend/public/design-option-3.png
 prune data

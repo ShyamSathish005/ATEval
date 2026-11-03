@@ -132,12 +132,7 @@ The default workflow binds to loopback. Do not send unpublished manuscripts to a
 
 ## Release status
 
-The current branch is an alpha research preview. The initial release scope is
-macOS, local-first processing, loopback-only API access, and the verified
-Ollama configuration documented in [model setup](docs/MODEL_SETUP.md). Linux,
-Windows, and Docker Compose remain unverified and are not advertised as
-supported. See the [release checklist](docs/release_checklist.md) and
-[readiness report](docs/release_readiness_report.md).
+This is the **v0.1.0-alpha.1 experimental release**. See the [project status](docs/PROJECT_STATUS.md) for supported platforms, verified capabilities, and limitations.
 
 ## Contributing and citation
 

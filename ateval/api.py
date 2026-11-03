@@ -78,7 +78,9 @@ ALLOWED_CORS_ORIGINS = tuple(
     for origin in (_cors_origins_from_env.split(",") if _cors_origins_from_env else DEFAULT_CORS_ORIGINS)
     if origin.strip() and origin.strip().lower() not in {"null", "*"}
 )
-CLIENT_BUILD_DIR = PROJECT_ROOT / "frontend" / "dist" / "client"
+_workspace_client_build = PROJECT_ROOT / "frontend" / "dist" / "client"
+_packaged_client_build = Path(__file__).resolve().parent / "static"
+CLIENT_BUILD_DIR = _workspace_client_build if (_workspace_client_build / "index.html").is_file() else _packaged_client_build
 REVISION_MODEL_DIR = PROJECT_ROOT / "models" / "revisions" / "iterater_human_grouped_v1"
 REVISION_MODEL_PATH = REVISION_MODEL_DIR / "local-logistic_regression.joblib"
 REVISION_MODEL_METADATA = REVISION_MODEL_DIR / "local-logistic_regression.metadata.json"

@@ -31,7 +31,7 @@ echo "[1/5] Using Python: $($PYTHON_BIN --version) ($PYTHON_BIN)"
 
 # 2. Check Node.js and npm
 if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
-    echo "Warning: Node.js and npm are required to build the frontend workspace."
+    echo "Node.js/npm not found; using the packaged frontend when available."
     echo "Please install Node.js (v20 or v22 recommended) from https://nodejs.org/"
 fi
 
@@ -56,7 +56,7 @@ python -m pip install --upgrade pip --quiet
 python -m pip install -e ".[ui-server,writing-docs]" --quiet
 
 # 5. Build Frontend if needed
-if [ ! -f "frontend/dist/client/index.html" ]; then
+if [ ! -f "frontend/dist/client/index.html" ] && [ ! -f "ateval/static/index.html" ]; then
     if command -v npm >/dev/null 2>&1; then
         echo "[4/5] Building frontend application..."
         (cd frontend && npm ci && npm run build)
