@@ -81,6 +81,11 @@ class ManuscriptImportTests(unittest.TestCase):
             archive.writestr("../escape.tex", "bad")
         with self.assertRaisesRegex(ValueError, "unsafe file path"):
             import_manuscript("project.zip", unsafe.getvalue())
+        windows_unsafe = io.BytesIO()
+        with zipfile.ZipFile(windows_unsafe, "w") as archive:
+            archive.writestr(r"..\escape.tex", "bad")
+        with self.assertRaisesRegex(ValueError, "unsafe file path"):
+            import_manuscript("project.zip", windows_unsafe.getvalue())
 
     def test_zip_symlink_is_rejected(self):
         symlink = io.BytesIO()

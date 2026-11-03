@@ -14,7 +14,7 @@ import re
 import stat
 import zipfile
 from dataclasses import dataclass
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 from ..writing.documents import MAX_DOCUMENT_BYTES, extract_document
@@ -90,6 +90,11 @@ def _zip_files(content: bytes) -> dict[str, bytes]:
         raise ValueError("LaTeX project ZIP expands beyond the 100 MiB safety limit")
     files: dict[str, bytes] = {}
     for info in infos:
+        if "\\" in info.filename:
+            raise ValueError("LaTeX project ZIP contains an unsafe file path")
+        windows_path = PureWindowsPath(info.filename)
+        if windows_path.is_absolute() or windows_path.drive or ".." in windows_path.parts:
+            raise ValueError("LaTeX project ZIP contains an unsafe file path")
         path = PurePosixPath(info.filename)
         if path.is_absolute() or ".." in path.parts or not path.parts:
             raise ValueError("LaTeX project ZIP contains an unsafe file path")

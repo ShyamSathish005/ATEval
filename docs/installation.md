@@ -1,20 +1,17 @@
 # Installation
 
-ATEval is an alpha research preview. Initial installation does not download
-large language models or research datasets. Python 3.11 or newer and Node.js 22
-are required for the local API and frontend workspace.
+ATEval v0.1.0-alpha.1 is an alpha research preview. The supported initial
+configuration is macOS with Python 3.11+, Node.js 22+, and a user-managed
+loopback Ollama installation. Installation does not download language models
+or research datasets.
 
 ## Automated desktop setup (one-click)
 
 To automate environment creation, dependency installation, frontend compilation, and server startup:
 
-- **Linux / macOS**:
-  ```sh
-  chmod +x launch.sh
-  ./launch.sh
-  ```
-- **Windows**:
-  Double-click `launch.bat` or run `launch.bat` in Command Prompt / PowerShell.
+The portable launchers are retained for experimentation, but Linux, Windows,
+and Docker Compose have not had clean lifecycle verification and are not
+supported by this alpha.
 
 The launcher verifies prerequisites, configures `.venv`, installs `ui-server` and `writing-docs` extras, builds the web interface, runs `ateval doctor`, and starts the workspace on `http://127.0.0.1:8000`.
 
@@ -68,9 +65,12 @@ Open `http://127.0.0.1:8000` for the built same-origin application. For UI
 development use `cd frontend && npm run dev`; Vite's proxy targets the local
 API. Keep the API loopback-bound.
 
-## Docker Compose
+## Docker Compose (unverified)
 
-Install Docker Desktop or Docker Engine with the Compose plugin, then run:
+Docker image builds are covered by CI, but Docker Compose startup, upload,
+shutdown, and volume cleanup were not verified in the release environment.
+Do not treat this path as supported. If testing it independently, install
+Docker Desktop or Docker Engine with the Compose plugin, then run:
 
 ```sh
 docker compose -f compose.yaml up --build

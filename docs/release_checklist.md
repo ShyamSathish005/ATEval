@@ -3,18 +3,18 @@
 This checklist is for `v0.1.0-alpha`. A checked item must have reproducible
 evidence in the release readiness report or linked CI run.
 
-**Assessment branch:** `m0.4-release-readiness`
-**Assessment commit:** `93246666b1e249304355f926b80d87622d92ca11`
+**Assessment branch:** `main`
+**Assessment commit:** `b70b99d47b70e7a1faecb90d788a84a8e10acb18`
 
 ## Required gates
 
 - [x] Isolated public Git repository, reviewed branch diff, and merge to main.
-- [x] Main CI run `41573865780` passed Python 3.11, 3.12, and 3.13 checks.
-- [x] Main CI run `41573865780` passed frontend build, packaged-site checks,
+- [x] Main CI run `41595840933` passed Python 3.11, 3.12, and 3.13 checks.
+- [x] Main CI run `41595840933` passed frontend build, packaged-site checks,
   and npm audit.
-- [x] Main CI run `41573865780` passed the Docker image build (runtime remains
+- [x] Main CI run `41595840933` passed the Docker image build (runtime remains
   unverified).
-- [x] Main CI run `41573865780` passed Python dependency audit and archive
+- [x] Main CI run `41595840933` passed Python dependency audit and archive
   hygiene checks.
 - [x] Owner confirmation of authorship and authority to license project-authored
   material under MIT, recorded in `docs/final_license_provenance_review.md`.
@@ -23,8 +23,9 @@ evidence in the release readiness report or linked CI run.
 - [ ] macOS, Linux, and Windows clean-install verification. Current evidence
   supports macOS local verification and Ubuntu CI only; see
   [platform matrix](platform_compatibility.md).
-- [ ] Independent security and privacy review for any public deployment; the
-  local threat-model review is documented separately.
+- [x] Independent security and privacy review completed with one medium ZIP
+  traversal issue fixed and regression-tested; no public confidential-
+  manuscript deployment is offered.
 
 The M0.4 branch contains a tested SSRF validation fix for optional Ollama
 inference. It must be reviewed and merged before that fix can be part of a

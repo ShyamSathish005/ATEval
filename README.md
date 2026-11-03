@@ -20,7 +20,7 @@
   </p>
 </div>
 
-> **Experimental alpha:** ATEval is not scientifically validated and every revision requires author review. Local model generation is not launch-approved until the declared model smoke test passes. The stylometric research signal is not an authorship detector and must not be used for authorship, misconduct, or academic-integrity determinations.
+> **Experimental alpha:** ATEval is not scientifically validated and every revision requires author review. The initial release targets macOS with a user-managed loopback Ollama model. The stylometric research signal is not an authorship detector and must not be used for authorship, misconduct, or academic-integrity determinations.
 
 > **Product promise:** Improve your academic writing. Preserve your research.
 
@@ -55,10 +55,10 @@ The design priorities are:
 | Descriptive academic-writing analysis | **Available** | Linguistic signals only; not authorship evidence |
 | Revision-intention classifier | **Experimental** | Grouped baselines are advisory and weak on rare classes |
 | SCAR selective revision pipeline | **Experimental** | Protected spans, fail-closed checks, and author approval required |
-| Model-backed generation | **Launch gate pending** | User-managed loopback Ollama model; no weights bundled; run the real-model smoke test |
+| Model-backed generation | **Supported configuration verified** | macOS + loopback Ollama + `ateval-xtragpt-1_5b-q8_0`; no weights bundled; author review remains required |
 | Human-evaluation workflow | **Infrastructure available** | Blinded packet and annotation tooling exist; qualified outcomes remain pending |
 | AI-writing evaluator baseline | **Experimental** | Deterministic stylometric signal; no calibration, benchmark, or authorship conclusion |
-| Public confidential-manuscript service | **Not offered** | Local loopback workflow only; review [privacy](PRIVACY.md) |
+| Public confidential-manuscript service | **Not offered** | Local loopback workflow only; review [privacy](docs/PRIVACY_AND_DATA_HANDLING.md) |
 
 ## Quick start
 
@@ -73,8 +73,8 @@ cd ATEval
 
 The macOS installer creates a virtual environment, installs local document
 support, builds the frontend, and runs the doctor check. It does not download
-model weights or datasets. See [installation](docs/installation.md) for
-manual, Windows/Linux, and Docker setup.
+model weights or datasets. See [installation](docs/installation.md) for the supported macOS path and
+explicitly unverified alternatives.
 
 For the local UI and document extraction:
 
@@ -85,7 +85,7 @@ cd ..
 python -m ateval api
 ```
 
-Open `http://127.0.0.1:8000` after the production build. Development mode uses `cd frontend && npm run dev` and proxies `/api` to the loopback API. See [installation](docs/installation.md) for Docker Compose and optional research extras.
+Open `http://127.0.0.1:8000` after the production build. Development mode uses `cd frontend && npm run dev` and proxies `/api` to the loopback API.
 
 Analyze a manuscript without overwriting its source:
 
@@ -126,19 +126,18 @@ Read [Research & Evaluation](docs/RESEARCH.md), [evaluation details](docs/EVALUA
 
 ## Data, licensing, and privacy
 
-Project-authored material is released under MIT according to the owner's recorded confirmation. Dependencies, fonts, model checkpoints, datasets, source passages, and derived research artifacts retain their own licences and are not implicitly covered by MIT. See [datasets and licensing](docs/DATASETS_AND_LICENSING.md), [model licences](MODEL_LICENSES.md), and [privacy](PRIVACY.md).
+Project-authored material is released under MIT according to the owner's recorded confirmation. Dependencies, fonts, model checkpoints, datasets, source passages, and derived research artifacts retain their own licences and are not implicitly covered by MIT. See [datasets and licensing](DATASET_LICENSES.md), [model licences](MODEL_LICENSES.md), and [privacy](docs/PRIVACY_AND_DATA_HANDLING.md).
 
 The default workflow binds to loopback. Do not send unpublished manuscripts to a remote model or hosted deployment without an independent privacy review. Raw research data and generated experiment outputs are excluded from release archives.
 
 ## Release status
 
-The current branch is an alpha research preview. Main CI run
-[`41573865780`](https://github.com/ShyamSathish005/ATEval/actions/runs/41573865780)
-passes Python 3.11–3.13, frontend checks, dependency audits, archive hygiene,
-and the Docker image build. Docker Compose runtime verification, complete
-cross-platform installation evidence, and independent security/privacy review
-remain release gates. See the [release checklist](docs/release_checklist.md)
-and [readiness report](docs/release_readiness_report.md).
+The current branch is an alpha research preview. The initial release scope is
+macOS, local-first processing, loopback-only API access, and the verified
+Ollama configuration documented in [model setup](docs/MODEL_SETUP.md). Linux,
+Windows, and Docker Compose remain unverified and are not advertised as
+supported. See the [release checklist](docs/release_checklist.md) and
+[readiness report](docs/release_readiness_report.md).
 
 ## Contributing and citation
 

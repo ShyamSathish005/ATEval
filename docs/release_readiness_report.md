@@ -1,17 +1,18 @@
 # Alpha release readiness report
 
-**Assessment branch:** `m0.4-release-readiness`
-**Assessment commit:** `93246666b1e249304355f926b80d87622d92ca11`
+**Assessment branch:** `main`
+**Assessment commit:** `b70b99d47b70e7a1faecb90d788a84a8e10acb18`
 **Base:** `main`
 **Assessment date:** 2026-11-03
 
 ## Decision
 
-**Not ready for tag or publication.** The latest verified main CI run
-`41573865780` passed all jobs. The project owner has confirmed authority for
-project-authored material under MIT, but Docker Compose runtime verification,
-complete platform coverage, and independent security/privacy review remain
-incomplete. No release artifact or tag has been created.
+**Narrowly scoped alpha candidate; operational limitations remain.** Main CI
+run `41595840933` passed all jobs, and the separate M6.4 security review is
+recorded in [INDEPENDENT_SECURITY_REVIEW_M6_4.md](INDEPENDENT_SECURITY_REVIEW_M6_4.md).
+The supported release scope is macOS with local Ollama. Docker Compose runtime
+verification, clean physical-machine installation, and broader platform
+coverage remain unverified; they are not advertised as supported.
 
 ## Verified
 

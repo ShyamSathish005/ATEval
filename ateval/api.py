@@ -26,6 +26,7 @@ from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, AsyncIterator, Literal
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -81,7 +82,25 @@ CLIENT_BUILD_DIR = PROJECT_ROOT / "frontend" / "dist" / "client"
 REVISION_MODEL_DIR = PROJECT_ROOT / "models" / "revisions" / "iterater_human_grouped_v1"
 REVISION_MODEL_PATH = REVISION_MODEL_DIR / "local-logistic_regression.joblib"
 REVISION_MODEL_METADATA = REVISION_MODEL_DIR / "local-logistic_regression.metadata.json"
-XTRAGPT_OLLAMA_URL = os.environ.get("ATEVAL_OLLAMA_URL", "http://127.0.0.1:11434")
+
+def _loopback_ollama_url(value: str) -> str:
+    parsed = urlsplit(value)
+    if (
+        parsed.scheme != "http"
+        or parsed.hostname not in {"127.0.0.1", "localhost", "::1"}
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+        or parsed.path not in {"", "/"}
+    ):
+        raise ValueError("ATEVAL_OLLAMA_URL must be an HTTP loopback URL")
+    return value.rstrip("/")
+
+
+XTRAGPT_OLLAMA_URL = _loopback_ollama_url(
+    os.environ.get("ATEVAL_OLLAMA_URL", "http://127.0.0.1:11434")
+)
 XTRAGPT_OLLAMA_MODEL = os.environ.get("ATEVAL_OLLAMA_MODEL", "ateval-xtragpt-1_5b-q8_0")
 XTRAGPT_GGUF_PATH = Path(
     os.environ.get(

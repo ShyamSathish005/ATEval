@@ -10,6 +10,15 @@ from ateval import api as local_api
 
 
 class LocalApiTests(unittest.TestCase):
+    def test_ollama_health_configuration_is_loopback_only(self):
+        from ateval.api import _loopback_ollama_url
+
+        self.assertEqual(_loopback_ollama_url("http://127.0.0.1:11434/"), "http://127.0.0.1:11434")
+        for value in ("https://127.0.0.1:11434", "http://remote.example:11434", "http://127.0.0.1:11434/api"):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(ValueError, "loopback"):
+                    _loopback_ollama_url(value)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         root = Path(self.temp.name)
