@@ -25,6 +25,7 @@ data/*
 data/manifests/*
 !data/manifests/txd22_dataset_manifest.json
 !data/manifests/txd22_split_manifest.json
+!data/manifests/m5_2_failure_analysis_manifest.json
 models/
 reports/
 experiments/

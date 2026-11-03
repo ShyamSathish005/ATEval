@@ -1,0 +1,25 @@
+{
+  "analysis": "M5.2 detector failure analysis",
+  "dataset": "TXD-22",
+  "dataset_version": "1",
+  "source_manifest": "txd22_dataset_manifest.json",
+  "split_manifest": "txd22_split_manifest.json",
+  "source_sha256": "232c260f8caf7ea61a331f39fa730956862afbe0c5fc554720daa07d215a2f7d",
+  "seed": 42,
+  "frozen_detector": "ateval.detectors.evaluate_stylometric_baseline",
+  "positive_class": "ai",
+  "selection_policy": "Directions and thresholds are selected on validation only; the test split is not used for selection.",
+  "commands": [
+    "python3 scripts/prepare_detection_splits.py --manifest-dir /tmp/ateval-m52-manifests",
+    "python3 scripts/analyze_m52_detector_failure.py --manifest-dir /tmp/ateval-m52-manifests --output-dir /tmp/ateval-m52-reports"
+  ],
+  "outputs": [
+    "m52_failure_analysis.json",
+    "roc_curve.svg",
+    "precision_recall_curve.svg",
+    "feature_distributions.svg",
+    "confusion_matrix.json"
+  ],
+  "test_tuning": false,
+  "mixed_authorship_in_binary_task": false
+}
