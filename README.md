@@ -1,5 +1,7 @@
 <div align="center">
-  <img src="docs/assets/ateval-hero.svg" alt="ATEval: manuscript signals flowing through analysis, protected revision, and author review" width="100%">
+  <img src="img/ATEval%20Feather%20Gradient%20Logo.png" alt="ATEval Logo" width="600">
+
+
 
   <h1>ATEval</h1>
   <p><strong>Academic Text Evaluation &amp; Writing Intelligence</strong></p>
