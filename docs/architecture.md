@@ -1,5 +1,7 @@
 # Architecture
 
+This page is the implementation reference for the [README overview](../README.md).
+
 ```mermaid
 flowchart LR
   Browser[React / Vite UI] -->|relative /api| LocalAPI[FastAPI on loopback]
@@ -26,3 +28,7 @@ Model inference is optional and separated from ingestion. API calls to an
 Ollama-compatible service are an explicit local configuration. A remote model
 endpoint can disclose manuscript contents and must not be used with private
 work unless independently approved.
+
+The protection and review path is intentionally conservative: automated
+structural checks do not prove semantic equivalence, and suggestions remain
+author-controlled.
