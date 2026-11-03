@@ -75,8 +75,9 @@ incomplete. No release artifact or tag has been created.
 - Independent security and privacy review before any public deployment. The
   local threat-model assessment and unresolved risks are in
   [security and privacy review](security_privacy_review.md).
-- The security review identified an unresolved medium-severity SSRF risk in
-  optional Ollama URL validation; no security clearance is claimed.
+- The security review identified a medium-severity SSRF risk in optional
+  Ollama URL validation. A minimal fix and regression tests pass on this
+  branch, but the fix is not in `main`; no security clearance is claimed.
 
 ## Release action
 

@@ -26,6 +26,10 @@ evidence in the release readiness report or linked CI run.
 - [ ] Independent security and privacy review for any public deployment; the
   local threat-model review is documented separately.
 
+The M0.4 branch contains a tested SSRF validation fix for optional Ollama
+inference. It must be reviewed and merged before that fix can be part of a
+release; this checklist does not authorize merging or publication.
+
 ## Publication rule
 
 Do not create `v0.1.0-alpha` or publish a GitHub release while a mandatory

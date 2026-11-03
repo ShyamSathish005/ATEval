@@ -31,12 +31,11 @@ independent review.
 
 ## Unresolved risks and required actions
 
-1. **Medium — optional Ollama URL validation may permit SSRF.** The current
-   loopback check in `ateval/revisions/academic_generation.py` uses string
-   prefix validation rather than parsed hostname validation. Ambiguous values
-   such as `http://127.0.0.1.attacker.example` may redirect manuscript prompts
-   to an attacker-controlled host. Parse the URL and require an exact approved
-   loopback hostname before enabling remote inference.
+1. **Resolved on this branch — medium SSRF risk in optional Ollama URL
+   validation.** The branch now parses the URL and requires an exact approved
+   loopback hostname, with regression tests for attacker-controlled suffixes,
+   credentials, schemes, and paths. This fix is not in `main` until the branch
+   is reviewed and merged.
 2. Docker Compose runtime behavior, temporary-file cleanup, and synthetic
    upload/analysis have not been tested because Docker is unavailable.
 3. No independent security reviewer has certified the application or a public

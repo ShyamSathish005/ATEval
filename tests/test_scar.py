@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from ateval.revisions.academic_generation import AcademicRevisionProposal
+from ateval.revisions.academic_generation import AcademicRevisionProposal, XtraGPTOllamaGenerator
 from ateval.revisions.protected_content import protect_content, validate_and_restore
 from ateval.revisions.claim_validation import compare_claim_propositions
 from ateval.revisions.scar import SCARRevisionEngine, _generation_was_capped, revision_necessity_gate
@@ -48,6 +48,22 @@ class ProtectedContentTests(unittest.TestCase):
         self.assertIn("duplicate_protected_sentinel", duplicate.violations)
         self.assertIn("protected_span_sequence_changed", added_number.violations)
         self.assertIsNone(added_number.restored_text)
+
+
+class LocalModelEndpointTests(unittest.TestCase):
+    def test_ollama_endpoint_requires_exact_loopback_hostname(self):
+        valid = XtraGPTOllamaGenerator("model", model_file="model.gguf", base_url="http://127.0.0.1:11434")
+        self.assertEqual(valid.base_url, "http://127.0.0.1:11434")
+        for base_url in (
+            "http://127.0.0.1.attacker.example:11434",
+            "http://localhost.attacker.example:11434",
+            "http://user:pass@127.0.0.1:11434",
+            "https://127.0.0.1:11434",
+            "http://127.0.0.1:11434/api",
+        ):
+            with self.subTest(base_url=base_url):
+                with self.assertRaisesRegex(ValueError, "loopback"):
+                    XtraGPTOllamaGenerator("model", model_file="model.gguf", base_url=base_url)
 
     def test_reordered_typed_sentinels_fail_closed(self):
         protected = protect_content("We measured 12% for 3 days.")
