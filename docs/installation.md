@@ -3,7 +3,20 @@
 ATEval is an alpha research preview. Initial installation does not download
 large language models or research datasets. Python 3.11 or newer is required.
 
-## Native Python installation
+## macOS quick install
+
+The supported M6.2 path is macOS with Python 3.11+, Node.js 22+, and npm:
+
+```sh
+./scripts/install_macos.sh
+./scripts/run_ateval.sh
+```
+
+Open `http://127.0.0.1:8000`. The installer creates `.venv`, installs local
+document support, builds the frontend, and runs `ateval doctor`. It does not
+install model weights or modify system packages.
+
+## Manual Python installation
 
 From the ATEval project directory:
 
