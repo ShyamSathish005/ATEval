@@ -1,9 +1,6 @@
 <div align="center">
   <img src="img/ATEval%20Feather%20Gradient%20Logo.png" alt="ATEval Logo" width="600">
 
-
-
-  <h1>ATEval</h1>
   <p><strong>Academic Text Evaluation &amp; Writing Intelligence</strong></p>
   <p>Local-first academic manuscript revision that improves expression while preserving research content and author control.</p>
 
