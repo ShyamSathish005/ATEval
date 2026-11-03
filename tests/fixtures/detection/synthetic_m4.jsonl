@@ -1,0 +1,4 @@
+{"doc_id": "m4_01", "text": "This paper investigates spectral clustering algorithms on sparse random graphs.", "model": "human", "domain": "arxiv", "label": "human"}
+{"doc_id": "m4_02", "text": "In conclusion, spectral clustering is a vital unsupervised learning technique.", "model": "chatgpt", "domain": "arxiv", "label": "machine"}
+{"doc_id": "m4_03", "text": "To change a tire safely, loosen the lug nuts before lifting the car with a jack.", "model": "human", "domain": "wikihow", "label": "human"}
+

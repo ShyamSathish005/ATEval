@@ -1,0 +1,5 @@
+{"id": "raid_01", "generation": "We present an empirical evaluation of robust optimization methods.", "model": "human", "domain": "abstracts", "label": "human"}
+{"id": "raid_02", "generation": "Furthermore, it is important to remember that neural networks require extensive data.", "model": "chatgpt", "domain": "abstracts", "label": "chatgpt", "attack": "none"}
+{"id": "raid_03", "generation": "The soup was prepared by simmering fresh vegetables and herbs over low heat.", "model": "human", "domain": "recipes", "label": "human"}
+{"id": "raid_04", "generation": "In summary, preparing delicious homemade soup is an easy and delightful activity.", "model": "gpt4", "domain": "recipes", "label": "gpt4", "attack": "none"}
+

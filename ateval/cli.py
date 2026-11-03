@@ -110,6 +110,15 @@ def _parser() -> argparse.ArgumentParser:
     detector_eval = detector_sub.add_parser("evaluate", help="Run the uncalibrated stylometric research baseline")
     detector_eval.add_argument("file", help="Input UTF-8 text file")
     detector_eval.add_argument("--output", help="Write evaluation JSON to a new file")
+    detector_bench = detector_sub.add_parser("benchmark", help="Run stylometric baseline benchmark against qualified manifests")
+    detector_bench.add_argument("--manifest-dir", default="data/manifests", help="Directory with benchmark manifests")
+    detector_bench.add_argument("--report-dir", default="reports/milestone5_1", help="Directory to save benchmark reports")
+    detector_bench.add_argument("--seed", type=int, default=42, help="Evaluation seed")
+    detector_split = detector_sub.add_parser("split", help="Prepare leakage-resistant detection splits")
+    detector_split.add_argument("--input", default="data/raw/txd_22/txd22_raw.csv", help="Raw corpus path")
+    detector_split.add_argument("--manifest-dir", default="data/manifests", help="Output directory")
+    detector_split.add_argument("--max-records", type=int, default=None, help="Max records to process")
+    detector_split.add_argument("--seed", type=int, default=42, help="Splitting seed")
     model = sub.add_parser("model", help="Inspect configured model components")
     model.add_subparsers(dest="model_command", required=True).add_parser("list", help="List model status")
     writing = sub.add_parser("writing", help="Analyze academic writing without changing the source")
@@ -160,6 +169,20 @@ def main(argv: list[str] | None = None) -> int:
             target.write_text(serialized + "\n", encoding="utf-8")
         else:
             print(serialized)
+    elif args.command == "detector" and args.detector_command == "benchmark":
+        from scripts.benchmark_stylometric_baseline import run_benchmark
+        try:
+            report = run_benchmark(Path(args.manifest_dir), Path(args.report_dir), seed=args.seed)
+            print(json.dumps({"status": "completed", "report_dir": str(args.report_dir)}, indent=2))
+        except Exception as exc:
+            parser.error(str(exc))
+    elif args.command == "detector" and args.detector_command == "split":
+        from scripts.prepare_detection_splits import prepare_splits
+        try:
+            summary = prepare_splits(Path(args.input), manifest_dir=Path(args.manifest_dir), max_records=args.max_records, seed=args.seed)
+            print(json.dumps(summary, indent=2))
+        except Exception as exc:
+            parser.error(str(exc))
     elif args.command == "model":
         print(json.dumps([spec.__dict__ for spec in MODELS], indent=2))
     elif args.command == "writing" and args.writing_command == "analyze":
