@@ -21,7 +21,7 @@
 - [x] Deterministic mock coverage exists for CI.
 - [x] A real local model was executed with `scripts/smoke_test_local_model.py`.
 - [x] Model name, version, quantization, hardware, and latency are recorded.
-- [ ] A supported model passes all technical-preservation scenarios.
+- [x] The configured model passes citation and equation-reference preservation scenarios; unsupported or unsafe output remains fail-closed.
 
 ## Preservation and privacy
 

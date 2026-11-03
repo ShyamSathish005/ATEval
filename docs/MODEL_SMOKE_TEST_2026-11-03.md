@@ -26,20 +26,27 @@ not a mocked test.
 | Sentence restructuring | Accepted for author review | 0.771 s | Structural checks passed |
 | Repetition reduction | Rejected | 0.832 s | Claim-cue change; expert review required |
 | No-op sentence | No change | 0.000 s | Abstained correctly |
-| Citation preservation | Rejected | 0.913 s | Protected sentinel missing |
-| Equation/reference preservation | Rejected | 1.264 s | Protected sentinels missing |
+| Citation preservation | Accepted for author review | rerun | Exact raw citation echo canonicalized and restored |
+| Equation/reference preservation | Accepted for author review | rerun | Exact raw reference echo canonicalized and restored |
 | Difficult technical claim | Expert review required | 0.000 s | Generation intentionally not started |
 
-The generated candidates were inspected by the SCAR gates. The model
-successfully produced real revisions, but it did not reliably preserve
-citation/equation sentinels in this configuration. Therefore the
-technical-preservation launch gate is **not passed**, and this model is not
-declared production-ready. Rejection is the correct safety behavior.
+The first run rejected the citation and equation/reference cases because the
+model copied the exact LaTeX commands instead of copying their typed sentinel
+tokens. The rerun applies a conservative canonicalization step: only exact
+byte-for-byte occurrences of the original protected source, in the original
+order and with the expected occurrence count, are converted back to sentinels.
+The original source mapping is then restored. Altered, missing, duplicated, or
+reordered protected content remains rejected.
+
+The citation and equation/reference technical-preservation scenarios therefore
+passed on rerun. This does not establish semantic equivalence, and full
+equation-environment generation remains a conservative source-preserving
+workflow rather than a model-generated edit target.
 
 The configured API now uses the safety-aware `ateval` prompt mode rather than
 the legacy `published` mode. This prevents a known integration defect where
-the published prompt omitted the protected-sentinel contract, but the model
-still requires a stronger preservation-capable configuration before release.
+the published prompt omitted the protected-sentinel contract. Unsafe output
+continues to fail closed; this smoke result does not replace human review.
 
 The full machine-readable output was generated at
 `/tmp/ateval-alpha-model-smoke-v2.json` during validation and is intentionally

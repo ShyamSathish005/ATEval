@@ -115,6 +115,20 @@ class LocalModelEndpointTests(unittest.TestCase):
         self.assertEqual(result.restored_text, source)
         self.assertEqual([item.original for item in protected.mapping].count("BERT"), 2)
 
+    def test_exact_raw_latex_echo_is_canonicalized_but_modified_source_fails(self):
+        source = r"We follow Smith \cite{smith2024} in Eq.~\ref{eq:one}."
+        protected = protect_content(source)
+        echoed = validate_and_restore(source, protected)
+        self.assertTrue(echoed.passed)
+        self.assertEqual(echoed.restored_text, source)
+
+        modified = validate_and_restore(
+            r"We follow Smith \cite{other2024} in Eq.~\ref{eq:one}.",
+            protected,
+        )
+        self.assertFalse(modified.passed)
+        self.assertIsNone(modified.restored_text)
+
 
 class GenerationCompletenessTests(unittest.TestCase):
     def test_length_finish_reason_and_token_cap_are_rejected(self):
