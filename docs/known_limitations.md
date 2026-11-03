@@ -13,6 +13,6 @@
 | Large model inference | Optional and user-managed | No automatic download; hardware, license, and data-protection constraints apply. |
 | Public demo | Not deployable for confidential uploads | Requires a separate public-mode implementation and independent privacy/security review. |
 | Scientific validation | Not established | Published research review and local baselines do not establish effectiveness. |
-| Apache-2.0 release rights | Unresolved | Workspace ownership and contributor authority must be verified before relicensing. |
+| Project MIT release authority | Unresolved | Owner confirmation and contributor provenance are required before publication; external dependencies, models, and datasets are not project-owned. |
 
 Do not use ATEval to make academic-integrity or misconduct determinations.
