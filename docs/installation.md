@@ -61,6 +61,7 @@ set `ATEVAL_PORT` or `ATEVAL_UPLOAD_LIMIT_BYTES` before starting Compose.
 - LaTeX compilation is not performed by manuscript analysis. Installing
   `latexmk` or `pdflatex` enables only the separate LaTeX workspace tools.
 
-The repository currently lacks an isolated Git repository and a verified
-public project remote. Do not tag or publish from the parent Desktop Git
-checkout. See the release checklist and release blocker report.
+The public repository is available at
+`https://github.com/ShyamSathish005/ATEval`. Release publication remains
+blocked until the release checklist and readiness report show that ownership,
+installation, and security gates are cleared.

@@ -11,6 +11,26 @@ Git author metadata records commit attribution, not copyright title or an assign
 
 Before a formal release, the project owner should confirm authorship or permission for the files they contributed, identify any contributors whose rights are not assigned, and confirm authority to apply MIT to the project-authored portions. If that cannot be confirmed, obtain the necessary permissions and/or revise the release scope and copyright notice. This is an unresolved owner-confirmation item, not a claim that the project lacks authority.
 
+## Provenance categories
+
+The release review distinguishes the following categories:
+
+- **Project-authored code:** `ateval/`, `scripts/`, tests, configuration, and
+  project documentation are treated as project-authored material for release
+  scoping, but ownership authority remains owner-confirmation pending because
+  the repository was imported as a snapshot.
+- **AI-assisted development:** some development work may have used AI
+  assistance. Assistance does not by itself transfer copyright or establish
+  authorship; generated or modified files remain subject to the same review.
+- **Third-party contributions:** no contributor assignment or licence grant is
+  recorded in this repository beyond the single visible Git author identity.
+- **Third-party dependencies:** Python and npm packages, GitHub Actions,
+  fonts, and other upstream components retain their upstream licences. They
+  are not project-owned.
+- **Models and datasets:** model checkpoints, research corpora, source
+  passages, and derived research artifacts are not project-owned, are not
+  bundled in the release, and require revision-specific upstream review.
+
 ## File provenance evidence
 
 - The five visible commits and current tracked project files are attributable in Git to one committer identity. This is the only authorship evidence available in the standalone repository.
@@ -27,4 +47,8 @@ Before a formal release, the project owner should confirm authorship or permissi
 
 The existing MIT text, `NOTICE`, and third-party notices were retained. `NOTICE` already says contributor ownership and release authority have not been verified. The archive allowlist excludes the unverified design image and all raw data, model, report, experiment, and generated output directories.
 
-This report does not offer legal advice or make a final rights determination. The MIT licence may remain in the repository as historical project state, but the project must not be represented as having cleared contributor authority until the project owner confirms the necessary rights. No formal release is authorized by this review.
+This report does not offer legal advice or make a final rights determination.
+MIT is retained for the portions the owner is authorized to license; this
+report does not extend MIT to external assets. The project must not be
+represented as having cleared contributor authority until the project owner
+confirms the necessary rights. No formal release is authorized by this review.
