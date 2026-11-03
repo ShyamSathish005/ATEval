@@ -1,6 +1,6 @@
 # M6.4 release readiness
 
-## Proposed release
+## Released alpha
 
 `ATEval v0.1.0-alpha.1`
 
@@ -35,8 +35,8 @@ Compose are unverified and are not advertised as supported.
 - The AI Writing Evaluator remains an experimental, non-validated research
   module and is not an authorship detector.
 
-## Release decision
+## Release status
 
-The software and source archive can be prepared for a narrowly scoped alpha,
-but publication requires owner review of the remaining unchecked operational
-gates. No Docker or cross-platform support claim is made.
+`v0.1.0-alpha.1` was published from the verified `main` commit after the
+required scoped gates passed. No Docker or cross-platform support claim is
+made; those environments remain explicitly unverified.
