@@ -17,7 +17,9 @@ flowchart LR
 ```
 
 Existing SCAR, protected-content, claim-cue, generation, and export components
-provide the foundation. The complete document-level objective selector,
-context-aware draft workflow, and end-to-end multi-edit review surface remain
-experimental and require a subsequent implementation milestone. No proposal is
-applied automatically and no detector score is used as an optimization target.
+provide the foundation. The document page now supplies the objective selector,
+section/passage targeting, deterministic phrase-rule proposals, optional local
+SCAR generation, side-by-side review, manual revalidation, undo history, and
+approved source-preserving export. The history is browser-session metadata and
+does not persist manuscript text. No proposal is applied automatically and no
+detector score is used as an optimization target.
