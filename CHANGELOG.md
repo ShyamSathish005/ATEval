@@ -1,18 +1,20 @@
 # Changelog
 
-## 0.1.0-alpha - unreleased
+## 0.1.0-alpha.1 - release candidate
 
-- Prepared first public alpha installation, security, privacy, licensing, and release documentation.
-- Added a multi-stage local Docker image and loopback-only Docker Compose deployment.
-- Added a runtime doctor report and configurable upload byte limit.
-- Main merge verification completed at `bbfa159`. CI run `41572673696`
-  passed Python 3.11/3.12/3.13, frontend, Docker image build, dependency
-  audits, archive hygiene, and the release gate.
-- The project owner confirmed authority to license project-authored material
-  under MIT; external assets remain separately licensed.
-- Release remains blocked pending owner-confirmed licensing authority, Docker
-  Compose runtime verification, installation evidence for each claimed
-  platform, and independent security and privacy review.
+- Academic Humanizer is the primary local-first workflow for source-aware,
+  author-controlled manuscript revision.
+- Added macOS installation and loopback launcher documentation.
+- Added real Ollama smoke-test evidence for selective revision, abstention,
+  citation/reference preservation, and fail-closed technical checks.
+- Added ZIP traversal hardening, independent security review findings, and
+  reproducible source-archive hygiene.
+- Added M6.4 release-readiness documentation and explicitly scoped support to
+  verified macOS/local Ollama use.
+- Linux, Windows, Docker Compose, and public confidential-manuscript hosting
+  remain unsupported or unverified.
+- The AI Writing Evaluator remains an experimental research module, not an
+  authorship detector.
 
 ## Development snapshot (formerly 0.2.0) - 2026-11-01
 

@@ -23,8 +23,9 @@ evidence in the release readiness report or linked CI run.
 - [ ] macOS, Linux, and Windows clean-install verification. Current evidence
   supports macOS local verification and Ubuntu CI only; see
   [platform matrix](platform_compatibility.md).
-- [ ] Independent security and privacy review is pending; no public
-  confidential-manuscript deployment is offered.
+- [x] Independent security and privacy review completed with one medium ZIP
+  traversal issue fixed and regression-tested; no public confidential-
+  manuscript deployment is offered.
 
 The M0.4 branch contains a tested SSRF validation fix for optional Ollama
 inference. It must be reviewed and merged before that fix can be part of a
