@@ -1,5 +1,23 @@
 # Quick start
 
+## Automated desktop setup (one-click)
+
+Run the included automated launcher from the repository root:
+
+- **Linux / macOS**:
+  ```sh
+  ./launch.sh
+  ```
+- **Windows**:
+  Double-click `launch.bat` or run:
+  ```cmd
+  launch.bat
+  ```
+
+The launcher automates Python version verification (3.11+), virtual environment creation (`.venv`), dependency installation, frontend building, system diagnostics (`ateval doctor`), and workspace startup at `http://127.0.0.1:8000`.
+
+## Manual step-by-step setup
+
 1. Install Python 3.11+, then follow [Installation](installation.md).
 2. Run `python -m ateval doctor` to inspect optional components.
 3. Start local UI/API with `python -m ateval api` and open

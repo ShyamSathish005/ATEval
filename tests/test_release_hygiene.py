@@ -24,6 +24,18 @@ class ReleaseArchiveTests(unittest.TestCase):
     def test_research_and_migration_reports_are_safe_to_archive(self):
         self.assertFalse(forbidden("ateval/docs/milestone_4_report.md"))
         self.assertFalse(forbidden("ateval/docs/ci_failure_root_cause.md"))
+        for safe_path in (
+            "ateval/docs/DATASETS_AND_LICENSING.md",
+            "ateval/docs/EVALUATION.md",
+            "ateval/docs/RESEARCH.md",
+            "ateval/docs/ROADMAP.md",
+            "ateval/docs/docker_runtime_report.md",
+            "ateval/docs/release_checklist.md",
+            "ateval/docs/release_readiness_report.md",
+            "ateval/docs/assets/ateval-hero.svg",
+        ):
+            with self.subTest(path=safe_path):
+                self.assertFalse(forbidden(safe_path))
 
     def test_archive_hygiene_passes_clean_and_reports_unsafe_members(self):
         with tempfile.TemporaryDirectory() as directory:
