@@ -4,17 +4,31 @@
 **Scope:** Public repository state at merged main commit
 `bbfa15936ecf3b092cf0ef2f99a33ad6c0ecc270`.
 
-## Finding: release authority is not established
+## Owner confirmation
+
+On 2026-11-03, the project owner explicitly confirmed in the release
+preparation record that they are the true owner of the ATEval project and have
+authority to license the project-authored portions under MIT. This confirmation
+resolves the project-owner authority gate for those portions.
+
+The confirmation does not transfer ownership of third-party dependencies,
+fonts, models, datasets, source passages, or other external assets. Those
+materials remain subject to their own licences and provenance requirements.
+
+## Finding: historical provenance is limited
 
 The repository contains an MIT `LICENSE` with the notice `Copyright (c) 2026 ATEval contributors`. The available Git history has five commits, all attributed to `ShyamSathish005 <shyamsathish10@gmail.com>`. However, the history begins with an imported/squashed project snapshot (`794b3af`, “Import ATEval as standalone project”); it does not preserve the source workspace's complete file history or establish who originally authored every imported file.
 
-Git author metadata records commit attribution, not copyright title or an assignment. The current records therefore do not establish that the named project owner wrote or owns every project file, that any external contributors assigned their rights, or that the project owner has authority to offer all project-authored material under MIT. The broad “ATEval contributors” copyright line is not substantiated by the available repository history. It has **not** been changed automatically.
+Git author metadata records commit attribution, not copyright title or an assignment. The historical record does not independently establish file-level authorship or
+external contributor assignments. The owner confirmation above is the
+authority basis for the project-authored release scope; it does not extend to
+external materials. The broad “ATEval contributors” copyright line is retained
+without modification.
 
 Before a formal release, the project owner should confirm authorship or permission for the files they contributed, identify any contributors whose rights are not assigned, and confirm authority to apply MIT to the project-authored portions. If that cannot be confirmed, obtain the necessary permissions and/or revise the release scope and copyright notice. This is an unresolved owner-confirmation item, not a claim that the project lacks authority.
 
-No separate explicit ownership declaration was supplied for this review.
-Accordingly, the ownership gate remains open and no copyright notice has been
-modified.
+The explicit owner declaration was supplied for this review. No copyright
+notice was modified.
 
 ## Provenance categories
 
@@ -50,10 +64,13 @@ The release review distinguishes the following categories:
 
 ## Current notices and actions
 
-The existing MIT text, `NOTICE`, and third-party notices were retained. `NOTICE` already says contributor ownership and release authority have not been verified. The archive allowlist excludes the unverified design image and all raw data, model, report, experiment, and generated output directories.
+The existing MIT text, `NOTICE`, and third-party notices were retained. The
+archive allowlist excludes the unverified design image and all raw data, model,
+report, experiment, and generated output directories.
 
 This report does not offer legal advice or make a final rights determination.
 MIT is retained for the portions the owner is authorized to license; this
 report does not extend MIT to external assets. The project must not be
-represented as having cleared contributor authority until the project owner
-confirms the necessary rights. No formal release is authorized by this review.
+represented as having cleared rights for external materials. Project-owner
+authority for project-authored material is confirmed, but no formal release is
+authorized by this review while the remaining operational gates are open.

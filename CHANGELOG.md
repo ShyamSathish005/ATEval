@@ -8,6 +8,8 @@
 - Main merge verification completed at `bbfa159`. CI run `41572673696`
   passed Python 3.11/3.12/3.13, frontend, Docker image build, dependency
   audits, archive hygiene, and the release gate.
+- The project owner confirmed authority to license project-authored material
+  under MIT; external assets remain separately licensed.
 - Release remains blocked pending owner-confirmed licensing authority, Docker
   Compose runtime verification, installation evidence for each claimed
   platform, and independent security and privacy review.

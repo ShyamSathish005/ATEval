@@ -10,8 +10,8 @@ evidence in the release readiness report or linked CI run.
 - [x] Main CI passed frontend build, packaged-site checks, and npm audit.
 - [x] Main CI passed the Docker image build (runtime remains unverified).
 - [x] Main CI passed Python dependency audit and archive hygiene checks.
-- [ ] Owner confirmation of authorship and authority to license project-authored
-  material under MIT.
+- [x] Owner confirmation of authorship and authority to license project-authored
+  material under MIT, recorded in `docs/final_license_provenance_review.md`.
 - [ ] Clean Docker Compose startup, health check, upload, analysis, loopback
   binding, temporary-file cleanup, and graceful shutdown verification.
 - [ ] Installation verification on every platform claimed in release

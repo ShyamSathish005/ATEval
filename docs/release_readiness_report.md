@@ -7,10 +7,10 @@
 ## Decision
 
 **Not ready for tag or publication.** Main is merged and its latest CI run
-`41572673696` passed, but owner confirmation of licensing authority, clean
-Docker Compose application verification, platform coverage, and independent
-security/privacy review remain incomplete. No release artifact or tag has been
-created.
+`41572999074` passed. The project owner has confirmed authority for
+project-authored material under MIT, but clean Docker Compose application
+verification, platform coverage, and independent security/privacy review remain
+incomplete. No release artifact or tag has been created.
 
 ## Verified
 
@@ -33,11 +33,11 @@ created.
 - Provenance documentation distinguishes project-authored material,
   AI-assisted development, third-party contributions, dependencies, models,
   and datasets. MIT is not asserted for external assets.
+- The project owner explicitly confirmed ownership and licensing authority for
+  project-authored material; the provenance report records the scope and date.
 
 ## Pending
 
-- Written owner confirmation of authorship/permissions and authority to apply
-  MIT to the project-authored portions.
 - Clean installation and Compose lifecycle verification, including health,
   manuscript upload, analysis, and shutdown.
 - Docker and Docker Compose are unavailable in the assessment environment

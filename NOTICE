@@ -1,9 +1,9 @@
 ATEval
 
-Copyright ownership and contributor authority for this workspace have not yet
-been verified. The existing LICENSE file is preserved as supplied. This NOTICE
-does not grant rights beyond those established by a verified project license.
-Resolve ownership and the intended project license before public release.
+The project owner confirmed on 2026-11-03 that they own the project-authored
+material and have authority to license those portions under MIT. This NOTICE
+does not grant rights beyond the project licence or extend MIT to external
+materials.
 
 Third-party components and research assets are documented separately in
 THIRD_PARTY_NOTICES.md, MODEL_LICENSES.md, and DATASET_LICENSES.md. No third-party

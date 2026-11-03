@@ -8,9 +8,10 @@
 **Not cleared for a formal release.** The pytest root cause is corrected and
 the merged main commit passed hosted CI run
 [41572673696](https://github.com/ShyamSathish005/ATEval/actions/runs/41572673696).
-Project ownership/release authority, Docker runtime verification, complete
-platform coverage, and independent security/privacy review remain pending. No
-tag or release has been created.
+Docker runtime verification, complete platform coverage, and independent
+security/privacy review remain pending. The project owner has confirmed
+authority for project-authored material under MIT. No tag or release has been
+created.
 
 ## Work completed
 
