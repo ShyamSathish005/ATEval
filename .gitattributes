@@ -1,0 +1,5 @@
+data export-ignore
+docs/research* export-ignore
+docs/M5_2_FAILURE_ANALYSIS.md export-ignore
+docs/ACADEMIC_DOMAIN_GAP.md export-ignore
+docs/DETECTOR_FEATURE_ANALYSIS.md export-ignore
