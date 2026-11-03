@@ -372,6 +372,26 @@ class LocalApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 503)
         self.assertIn("timeout", response.json()["detail"])
 
+    def test_manuscript_revision_uses_safety_aware_prompt_mode(self):
+        from unittest.mock import patch
+
+        class AvailableGenerator:
+            def __init__(self, *args, **kwargs):
+                self.mode = kwargs["mode"]
+
+            def generate(self, request):
+                raise RuntimeError(f"prompt mode={self.mode}")
+
+        with patch.object(local_api, "_ollama_revision_status", return_value={"available": True, "reason": None}), patch.object(local_api, "XtraGPTOllamaGenerator", AvailableGenerator):
+            response = self.client.post("/api/v1/writing/revise", json={
+                "sentence": "The method needs clarity.",
+                "paragraph_context": "The method needs clarity. This context gives the research setting.",
+                "intention": "clarity",
+                "author_requested_edit": True,
+            })
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("prompt mode=ateval", response.json()["detail"])
+
     @unittest.skipUnless(importlib.util.find_spec("joblib"), "optional revision-ml dependencies are not installed")
     def test_learned_revision_intent_is_advisory_and_not_persisted(self):
         if not local_api.REVISION_MODEL_PATH.is_file():

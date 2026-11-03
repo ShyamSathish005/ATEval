@@ -52,12 +52,12 @@ type PageId = "overview" | "experiments" | "datasets" | "detectors" | "results" 
 type NavItem = { id: PageId; label: string; icon: ComponentType<{ width?: number; height?: number; className?: string }> };
 
 const NAV_ITEMS: NavItem[] = [
+  { id: "manuscript", label: "Academic Humanizer", icon: ReaderIcon },
   { id: "overview", label: "Workspace", icon: HomeIcon },
   { id: "experiments", label: "Experiments", icon: ActivityLogIcon },
   { id: "datasets", label: "Datasets", icon: BackpackIcon },
   { id: "detectors", label: "Detector Laboratory", icon: BarChartIcon },
   { id: "results", label: "Results & Analytics", icon: ActivityLogIcon },
-  { id: "manuscript", label: "Manuscript Intelligence", icon: ReaderIcon },
   { id: "latex", label: "LaTeX Workspace", icon: FileTextIcon },
   { id: "quality", label: "Academic Quality", icon: ReaderIcon },
   { id: "review", label: "Blind Review", icon: ClipboardIcon },
@@ -71,7 +71,7 @@ const PAGE_TITLES: Record<PageId, string> = {
   datasets: "Datasets",
   detectors: "Detector laboratory",
   results: "Results and analytics",
-  manuscript: "Manuscript intelligence",
+  manuscript: "Academic Humanizer",
   latex: "LaTeX workspace",
   quality: "Academic quality",
   review: "Blind SCAR review",
@@ -118,7 +118,7 @@ export function App() {
   const mediaDark = useMediaDark();
   const isDark = theme === "dark" || (theme === "system" && mediaDark);
   const reduceMotion = useReducedMotion();
-  const [activePage, setActivePage] = useState<PageId>("overview");
+  const [activePage, setActivePage] = useState<PageId>("manuscript");
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem("ateval.sidebar-collapsed") === "true");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -583,6 +583,7 @@ function ManuscriptPage({ system }: { system: SystemStatus | null }) {
   const [file, setFile] = useState<File | null>(null);
   const [report, setReport] = useState<ManuscriptReport | null>(null);
   const [proposals, setProposals] = useState<ManuscriptEditProposal[]>([]);
+  const [revisionHistory, setRevisionHistory] = useState<ManuscriptEditProposal[][]>([]);
   const [selectedPassageId, setSelectedPassageId] = useState("");
   const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
   const [sectionFilter, setSectionFilter] = useState("all");
@@ -599,7 +600,7 @@ function ManuscriptPage({ system }: { system: SystemStatus | null }) {
   const demoSource = "\\documentclass{article}\n\\begin{document}\n\\section{Introduction}\nThis synthetic sample demonstrates local manuscript analysis. It contains no research findings, personal data, or unpublished work.\n\\end{document}\n";
 
   const reset = (nextFile: File | null) => {
-    setFile(nextFile); setReport(null); setProposals([]); setSelectedPassageId(""); setSelectedIds({});
+    setFile(nextFile); setReport(null); setProposals([]); setRevisionHistory([]); setSelectedPassageId(""); setSelectedIds({});
     setProgress(""); setError(""); setMessage("");
   };
   const analyze = async () => {
@@ -633,6 +634,7 @@ function ManuscriptPage({ system }: { system: SystemStatus | null }) {
         };
       });
       setProposals(phraseSuggestions);
+      setRevisionHistory([]);
       setProgress(""); setMessage("Manuscript analyzed. Detector methods remain unimplemented, so no AI-writing signals were generated.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not analyze this manuscript.");
@@ -644,7 +646,7 @@ function ManuscriptPage({ system }: { system: SystemStatus | null }) {
     try {
       const result = await api<ManuscriptReport>("/demo/sample", { method: "POST" });
       setFile(new File([demoSource], "ateval-synthetic-demo.tex", { type: "text/x-tex" }));
-      setReport(result); setProposals([]);
+      setReport(result); setProposals([]); setRevisionHistory([]);
       const first = result.passages[0]; setSelectedPassageId(first?.segment_id ?? "");
       setSelectedIds(first ? { [first.segment_id]: true } : {});
       setMessage("Synthetic sample analyzed. Public uploads, editing, and persistent data changes are disabled.");
@@ -711,8 +713,23 @@ function ManuscriptPage({ system }: { system: SystemStatus | null }) {
     setProgress(""); setBusy(false); setMessage(`Completed ${writableTargets.length} passage review request(s). No changes were applied to the manuscript.`);
   };
 
+  const rememberProposals = (current: ManuscriptEditProposal[]) => {
+    setRevisionHistory((history) => [...history.slice(-49), current]);
+  };
   const updateProposal = (id: string, transform: (proposal: ManuscriptEditProposal) => ManuscriptEditProposal) => {
-    setProposals((current) => current.map((proposal) => proposal.id === id ? transform(proposal) : proposal));
+    setProposals((current) => {
+      rememberProposals(current);
+      return current.map((proposal) => proposal.id === id ? transform(proposal) : proposal);
+    });
+  };
+  const undoRevision = () => {
+    setRevisionHistory((history) => {
+      const previous = history.at(-1);
+      if (!previous) return history;
+      setProposals(previous);
+      setMessage("Undid the last review decision. The imported source remains unchanged.");
+      return history.slice(0, -1);
+    });
   };
   const validateManual = async (proposal: ManuscriptEditProposal) => {
     if (!proposal.candidate) return;
@@ -730,10 +747,16 @@ function ManuscriptPage({ system }: { system: SystemStatus | null }) {
   const acceptAllSafe = () => {
     if (!window.confirm(`Accept all ${eligibleProposals.length} individually validated suggestions into the reviewed draft? The original file remains unchanged.`)) return;
     const ids = new Set(eligibleProposals.map((proposal) => proposal.id));
-    setProposals((current) => current.map((proposal) => ids.has(proposal.id) ? { ...proposal, author_decision: "accepted" } : proposal));
+    setProposals((current) => {
+      rememberProposals(current);
+      return current.map((proposal) => ids.has(proposal.id) ? { ...proposal, author_decision: "accepted" } : proposal);
+    });
   };
   const restoreOriginal = () => {
-    setProposals((current) => current.map((proposal) => ({ ...proposal, author_decision: "rejected" })));
+    setProposals((current) => {
+      rememberProposals(current);
+      return current.map((proposal) => ({ ...proposal, author_decision: "rejected" }));
+    });
     setMessage("All current proposals were rejected. The imported source remains unchanged.");
   };
 
@@ -804,7 +827,7 @@ function ManuscriptPage({ system }: { system: SystemStatus | null }) {
   };
 
   return <>
-    <PageIntro eyebrow={publicDemo ? "PUBLIC DEMO · SYNTHETIC SAMPLE ONLY" : "LOCAL · RESEARCH PROTOTYPE"} title="Manuscript Intelligence" description={publicDemo ? "Explore the analysis with a built-in synthetic document. Public file uploads and editing are disabled." : "Analyze a complete manuscript, inspect source-mapped passages, request selective academic edits, and export only reviewed changes."} />
+    <PageIntro eyebrow={publicDemo ? "PUBLIC DEMO · SYNTHETIC SAMPLE ONLY" : "LOCAL · RESEARCH PROTOTYPE"} title="Academic Humanizer" description={publicDemo ? "Explore the analysis with a built-in synthetic document. Public file uploads and editing are disabled." : "Improve a complete academic manuscript with selective, source-preserving revisions that remain under author control."} />
     <div className="manuscript-stepper" aria-label="Manuscript workflow">
       {["Upload", "Analysis", "Passage Review", "Academic Editing", "Compare Drafts", "Export"].map((step, index) => <button key={step} onClick={() => document.getElementById(`manuscript-step-${index}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}><span>{String(index + 1).padStart(2, "0")}</span>{step}</button>)}
     </div>
@@ -844,7 +867,7 @@ function ManuscriptPage({ system }: { system: SystemStatus | null }) {
         <p className="field-help">{writablePassages.length} of {report.passages.length} passages have exact writable source mappings. Technical precision and terminology consistency are routed to expert review; no automatic technical change is generated.</p>
       </section>
       <section id="manuscript-step-4" className="manuscript-card">
-        <div className="manuscript-card-heading"><div><span className="eyebrow">05 · COMPARE DRAFTS</span><h2>Review proposed changes</h2><p>{proposals.length} suggestions · {acceptedProposals.length} accepted to the working draft · original file remains unchanged.</p></div><div className="manuscript-report-actions"><button className="button button-quiet" onClick={acceptAllSafe} disabled={!eligibleProposals.length}>Accept all validated ({eligibleProposals.length})</button><button className="button button-quiet" onClick={restoreOriginal} disabled={!acceptedProposals.length}>Restore original</button></div></div>
+        <div className="manuscript-card-heading"><div><span className="eyebrow">05 · COMPARE DRAFTS</span><h2>Review proposed changes</h2><p>{proposals.length} suggestions · {acceptedProposals.length} accepted to the working draft · original file remains unchanged.</p></div><div className="manuscript-report-actions"><button className="button button-quiet" onClick={undoRevision} disabled={!revisionHistory.length}>Undo last decision</button><button className="button button-quiet" onClick={acceptAllSafe} disabled={!eligibleProposals.length}>Accept all validated ({eligibleProposals.length})</button><button className="button button-quiet" onClick={restoreOriginal} disabled={!acceptedProposals.length}>Restore original</button></div></div>
       <div className="manuscript-compare-columns"><div><span className="eyebrow">ORIGINAL PROJECTION</span><pre className="manuscript-compare-text">{report.prose_projection}</pre></div><div><span className="eyebrow">REVIEWED DRAFT PREVIEW</span><pre className="manuscript-compare-text">{acceptedProposals.length ? revisedProjection : "Accept an individually validated edit to preview a reviewed draft."}</pre></div></div>
         {proposals.length ? <div className="manuscript-proposals">{proposals.map((proposal) => <article key={proposal.id} className={`manuscript-proposal decision-${proposal.author_decision}`}><div className="manuscript-proposal-heading"><div><strong>{proposal.origin} · {proposal.passage.section} · passage {proposal.passage.sentence_index || "phrase rule"}</strong><span>{proposal.review_decision} · {sourceLocation(proposal.passage)}</span></div><span className="signal-pill">{proposal.author_decision}</span></div><div className="proposal-side-by-side"><div><span>Original</span><p>{proposal.original}</p></div><div><span>Proposed revision</span>{proposal.candidate == null ? <p>No candidate text; inspect the warning below.</p> : proposal.manual ? <textarea rows={4} value={proposal.candidate} onChange={(event) => updateProposal(proposal.id, (current) => ({ ...current, candidate: event.target.value, review_decision: "MANUAL_VALIDATION_REQUIRED", author_decision: "pending" }))} /> : <p>{proposal.candidate}</p>}</div></div>{proposal.warnings.map((warning, index) => <p className="field-help" key={index}>{warning}</p>)}{proposal.manual && <button className="button button-quiet" onClick={() => void validateManual(proposal)} disabled={busy || !proposal.candidate}>Validate manual revision</button>}<div className="suggestion-controls"><button className="button button-quiet" onClick={() => updateProposal(proposal.id, (current) => ({ ...current, manual: true, review_decision: "MANUAL_VALIDATION_REQUIRED", author_decision: "pending" }))} disabled={!proposal.candidate}>Edit manually</button><button className="button button-quiet" onClick={() => setDecision(proposal.id, "accepted")} disabled={proposal.review_decision !== "ACCEPT_FOR_AUTHOR_REVIEW" || !proposal.passage.source_map.editable || !proposal.candidate} aria-pressed={proposal.author_decision === "accepted"}>Accept change</button><button className="button button-quiet" onClick={() => setDecision(proposal.id, "rejected")} aria-pressed={proposal.author_decision === "rejected"}>Reject</button></div></article>)}</div> : <EmptyState title="No revision proposals yet" detail="Select editable passages, choose a scope and objective, then request a reviewable academic edit." />}
       </section>
@@ -852,6 +875,7 @@ function ManuscriptPage({ system }: { system: SystemStatus | null }) {
         <div className="manuscript-card-heading"><div><span className="eyebrow">06 · EXPORT</span><h2>Export report and reviewed manuscript</h2><p>Separate analysis findings from author-approved changes. Neither export overwrites the imported source.</p></div></div>
         <div className="manuscript-export-grid"><article><FileTextIcon width={20} height={20} /><h3>Analysis report</h3><p>Includes coverage, detector availability, independent method configuration, passage source positions, descriptive profile, exclusions and limitations.</p><div className="suggestion-controls"><button className="button button-quiet" onClick={() => downloadJson(`${file?.name.replace(/\.[^.]+$/, "") ?? "manuscript"}-analysis.json`, report)}>Download JSON</button><button className="button button-quiet" onClick={exportHtmlReport}>Download HTML</button><button className="button button-quiet" onClick={printReport}>Print / PDF</button></div></article><article><DownloadIcon width={20} height={20} /><h3>Reviewed manuscript</h3><p>{report.document.format === "pdf" ? "PDF source write-back is disabled; the imported PDF remains a read-only text projection." : `Export reviewed ${report.document.format.toUpperCase()} changes. LaTeX project ZIP exports preserve unedited project assets.`}</p><button className="button button-primary" onClick={() => void exportReviewed()} disabled={publicDemo || busy || !acceptedProposals.length || !report.document.write_back_supported}>Export reviewed version ({acceptedProposals.length})</button></article></div>
         {acceptedProposals.length > 0 && <button className="text-button" onClick={() => downloadJson(`${file?.name.replace(/\.[^.]+$/, "") ?? "manuscript"}-change-audit.json`, { schema: "ateval-manuscript-edit-audit-v1", created_at: new Date().toISOString(), document: { name: report.document.name, format: report.document.format, original_sha256: report.document.source_sha256 }, edits: proposals.map((proposal) => ({ passage_id: proposal.passage.segment_id, source_location: proposal.passage.source_map, original: proposal.original, proposal: proposal.candidate, origin: proposal.origin, validation: proposal.validation, decision: proposal.author_decision, accepted: proposal.author_decision === "accepted" })) })}>Download complete change audit</button>}
+        <details className="writing-limits"><summary>Revision history ({revisionHistory.length} undo step{revisionHistory.length === 1 ? "" : "s"})</summary><p>Decisions are kept in this browser session as proposal metadata only. The imported manuscript and its full text are not persisted by the history control.</p></details>
         <details className="writing-limits"><summary>Methodology, uncertainty and limitations</summary><ul>{report.limitations.map((limit) => <li key={limit}>{limit}</li>)}</ul></details>
       </section>
     </>}

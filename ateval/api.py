@@ -616,7 +616,7 @@ def writing_revision_proposal(payload: RevisionProposalRequest):
                 XTRAGPT_OLLAMA_MODEL,
                 model_file=XTRAGPT_GGUF_PATH,
                 base_url=XTRAGPT_OLLAMA_URL,
-                mode="published",
+                mode="ateval",
                 max_new_tokens=192,
                 context_length=2048,
             )
