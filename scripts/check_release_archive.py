@@ -19,6 +19,10 @@ FORBIDDEN_PATTERNS = (
     "*.safetensors", "*.gguf", "*.pyc", "*.tsbuildinfo",
 )
 SAFE_DOCS = {
+    "DATASETS_AND_LICENSING.md",
+    "EVALUATION.md",
+    "RESEARCH.md",
+    "ROADMAP.md",
     "algorithm_implementation_matrix.md",
     "architecture.md",
     "ci_failure_root_cause.md",
@@ -26,6 +30,7 @@ SAFE_DOCS = {
     "cors_upload_failure_analysis.md",
     "dataset_ingestion_report.md",
     "dataset_quality_report.md",
+    "docker_runtime_report.md",
     "edit_intention_taxonomy.md",
     "extended_revision_research.md",
     "final_license_provenance_review.md",
@@ -60,8 +65,10 @@ SAFE_DOCS = {
     "public_demo_deployment.md",
     "python_compatibility_report.md",
     "quick_start.md",
+    "release_checklist.md",
     "release_exclusion_manifest.yaml",
     "release_notes_v0.1.0-alpha.md",
+    "release_readiness_report.md",
     "repository_migration_report.md",
     "research_methodology.md",
     "revision_benchmark_report.md",
@@ -75,6 +82,9 @@ SAFE_DOCS = {
     "upload_integration_test_report.md",
     "writing_engine_evaluation.md",
 }
+SAFE_DOCS_ASSETS = {
+    "ateval-hero.svg",
+}
 
 
 def forbidden(path: str) -> bool:
@@ -86,8 +96,15 @@ def forbidden(path: str) -> bool:
     if "docs" in parts:
         index = parts.index("docs")
         remaining = parts[index + 1:]
-        if remaining and (len(remaining) != 1 or remaining[0] not in SAFE_DOCS):
-            return True
+        if remaining:
+            if len(remaining) == 1 and remaining[0] in SAFE_DOCS:
+                pass
+            elif len(remaining) == 1 and remaining[0] == "assets":
+                pass
+            elif len(remaining) == 2 and remaining[0] == "assets" and remaining[1] in SAFE_DOCS_ASSETS:
+                pass
+            else:
+                return True
     return any(fnmatch.fnmatch(part, pattern) for part in parts for pattern in FORBIDDEN_PATTERNS)
 
 

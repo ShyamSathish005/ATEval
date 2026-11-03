@@ -1,7 +1,29 @@
 # Installation
 
 ATEval is an alpha research preview. Initial installation does not download
-large language models or research datasets. Python 3.11 or newer is required.
+large language models or research datasets. Python 3.11 or newer and Node.js 22
+are required for the local API and frontend workspace.
+
+## Automated desktop setup (one-click)
+
+To automate environment creation, dependency installation, frontend compilation, and server startup:
+
+- **Linux / macOS**:
+  ```sh
+  chmod +x launch.sh
+  ./launch.sh
+  ```
+- **Windows**:
+  Double-click `launch.bat` or run `launch.bat` in Command Prompt / PowerShell.
+
+The launcher verifies prerequisites, configures `.venv`, installs `ui-server` and `writing-docs` extras, builds the web interface, runs `ateval doctor`, and starts the workspace on `http://127.0.0.1:8000`.
+
+## Common desktop installation hurdles and mitigations
+
+- **Python Version Mismatch**: System `python` on macOS and Linux distributions may point to Python 3.9 or 3.10. ATEval requires `>= 3.11`. Ensure Python 3.11+ is installed via python.org, Homebrew (`brew install python@3.12`), or your Linux package manager.
+- **Windows PowerShell Execution Policy**: Windows may restrict script execution (`Activate.ps1`). `launch.bat` bypasses PowerShell script execution restrictions by running directly via batch or using `.venv\Scripts\python.exe` directly.
+- **Node.js / npm Availability**: Node.js 20 or 22 is required to compile the client workspace under `frontend/`. If `npm` is missing, the API still runs for CLI operations, but the UI cannot be built.
+- **Port Conflicts**: Port `8000` is the default. If port `8000` is in use by another application, set `ATEVAL_PORT=8080` prior to running the launcher or `python -m ateval api`.
 
 ## Native Python installation
 
