@@ -55,7 +55,6 @@ SAFE_DOCS = {
     "REVISION_QUALITY_EVALUATION.md",
     "USER_GUIDE.md",
     "platform_compatibility.md",
-    "release_audit.md",
     "release_hardening_report.md",
     "security_privacy_review.md",
     "edit_intention_taxonomy.md",
