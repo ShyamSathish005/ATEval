@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ATEval design comparison</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; color: #182236; background: #f5f6f8; font: 14px/1.45 system-ui, sans-serif; }
+      header { height: 54px; padding: 0 22px; display: flex; align-items: center; justify-content: space-between; background: white; border-bottom: 1px solid #d9dde4; }
+      main { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 14px; height: calc(100vh - 54px); }
+      figure { margin: 0; min-width: 0; display: flex; flex-direction: column; background: white; border: 1px solid #d9dde4; border-radius: 8px; overflow: hidden; }
+      figcaption { padding: 10px 14px; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid #e3e6eb; }
+      img { display: block; width: 100%; height: calc(100% - 38px); object-fit: contain; background: #fbfaf8; }
+      iframe { display: block; width: 100%; height: calc(100% - 38px); border: 0; background: white; }
+    </style>
+  </head>
+  <body>
+    <header><strong>ATEval / Design QA</strong><span>Selected concept 03 · Poppins in implementation</span></header>
+    <main>
+      <figure><figcaption>Selected reference · generated concept 03</figcaption><img src="/design-option-3.png" alt="Selected ATEval workspace design concept" /></figure>
+      <figure><figcaption>Live prototype · local React app</figcaption><iframe src="/" title="Live ATEval workspace prototype"></iframe></figure>
+    </main>
+  </body>
+</html>

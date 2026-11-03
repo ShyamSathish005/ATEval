@@ -15,6 +15,7 @@ import time
 import unicodedata
 import urllib.error
 import urllib.request
+from urllib.parse import urlsplit
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Protocol
@@ -449,7 +450,16 @@ class XtraGPTOllamaGenerator:
             raise ValueError("context_length must be between 512 and 16384")
         if mode not in {"published", "ateval"}:
             raise ValueError("mode must be 'published' or 'ateval'")
-        if not base_url.startswith("http://127.0.0.1") and not base_url.startswith("http://localhost"):
+        parsed_url = urlsplit(base_url)
+        if (
+            parsed_url.scheme != "http"
+            or parsed_url.hostname not in {"127.0.0.1", "localhost", "::1"}
+            or parsed_url.username is not None
+            or parsed_url.password is not None
+            or parsed_url.query
+            or parsed_url.fragment
+            or parsed_url.path not in {"", "/"}
+        ):
             raise ValueError("the Ollama base URL must use loopback; remote inference is disabled")
         self.model_name = model_name
         self.model_file = Path(model_file).expanduser().resolve()
@@ -599,4 +609,3 @@ def proposal_for_record(record: Any, generator: TextGenerator) -> AcademicRevisi
         relevant_citations=tuple(re.findall(r"\\(?:cite[a-zA-Z*]*|ref|eqref)\s*(?:\[[^\]]*\]\s*)*\{[^}]*\}|\[[^\]]+\]|\([A-Z][^)]*\b(?:19|20)\d{2}[a-z]?\)", record.original_text)),
     )
     return generator.generate(request)
-

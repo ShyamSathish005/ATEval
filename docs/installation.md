@@ -25,7 +25,20 @@ The launcher verifies prerequisites, configures `.venv`, installs `ui-server` an
 - **Node.js / npm Availability**: Node.js 20 or 22 is required to compile the client workspace under `frontend/`. If `npm` is missing, the API still runs for CLI operations, but the UI cannot be built.
 - **Port Conflicts**: Port `8000` is the default. If port `8000` is in use by another application, set `ATEVAL_PORT=8080` prior to running the launcher or `python -m ateval api`.
 
-## Native Python installation
+## macOS quick install
+
+The supported M6.2 path is macOS with Python 3.11+, Node.js 22+, and npm:
+
+```sh
+./scripts/install_macos.sh
+./scripts/run_ateval.sh
+```
+
+Open `http://127.0.0.1:8000`. The installer creates `.venv`, installs local
+document support, builds the frontend, and runs `ateval doctor`. It does not
+install model weights or modify system packages.
+
+## Manual Python installation
 
 From the ATEval project directory:
 

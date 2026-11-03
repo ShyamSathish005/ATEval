@@ -7,6 +7,7 @@ ATEval uses layered evaluation rather than a single writing score.
 | Regression tests | Parser, API, protection, and gate behavior | Automated and run in CI |
 | Structural preservation | Numbers, citations, LaTeX, protected terms, source maps | Automated safety checks |
 | Revision experiments | Intent classification and local generation comparisons | Exploratory; reports are frozen |
+| AI-writing evaluator | Stylometric feature signal and passage localisation | Executable baseline; uncalibrated, no detector benchmark |
 | Human evaluation | Grammar, clarity, necessity, technical accuracy, and meaning | Infrastructure exists; qualified annotations pending |
 
 The M4.1–M4.4 reports preserve negative findings and explicitly distinguish

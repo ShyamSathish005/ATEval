@@ -105,7 +105,20 @@ def _parser() -> argparse.ArgumentParser:
     papers = sub.add_parser("papers", help="Inspect the research registry")
     papers.add_subparsers(dest="papers_command", required=True).add_parser("audit", help="Check registered paper identifiers and source links")
     detector = sub.add_parser("detector", help="Inspect detector implementations")
-    detector.add_subparsers(dest="detector_command", required=True).add_parser("list", help="List detector status")
+    detector_sub = detector.add_subparsers(dest="detector_command", required=True)
+    detector_sub.add_parser("list", help="List detector status")
+    detector_eval = detector_sub.add_parser("evaluate", help="Run the uncalibrated stylometric research baseline")
+    detector_eval.add_argument("file", help="Input UTF-8 text file")
+    detector_eval.add_argument("--output", help="Write evaluation JSON to a new file")
+    detector_bench = detector_sub.add_parser("benchmark", help="Run stylometric baseline benchmark against qualified manifests")
+    detector_bench.add_argument("--manifest-dir", default="data/manifests", help="Directory with benchmark manifests")
+    detector_bench.add_argument("--report-dir", default="reports/milestone5_1", help="Directory to save benchmark reports")
+    detector_bench.add_argument("--seed", type=int, default=42, help="Evaluation seed")
+    detector_split = detector_sub.add_parser("split", help="Prepare leakage-resistant detection splits")
+    detector_split.add_argument("--input", default="data/raw/txd_22/txd22_raw.csv", help="Raw corpus path")
+    detector_split.add_argument("--manifest-dir", default="data/manifests", help="Output directory")
+    detector_split.add_argument("--max-records", type=int, default=None, help="Max records to process")
+    detector_split.add_argument("--seed", type=int, default=42, help="Splitting seed")
     model = sub.add_parser("model", help="Inspect configured model components")
     model.add_subparsers(dest="model_command", required=True).add_parser("list", help="List model status")
     writing = sub.add_parser("writing", help="Analyze academic writing without changing the source")
@@ -139,12 +152,40 @@ def main(argv: list[str] | None = None) -> int:
         except ImportError as exc:
             parser.error("Install the UI API dependencies with: python -m pip install -e '.[ui-server]'")
         uvicorn.run("ateval.api:app", host=args.host, port=args.port, log_level=config.log_level.lower())
-    elif args.command == "detector":
+    elif args.command == "detector" and args.detector_command == "list":
         print(json.dumps([spec.__dict__ for spec in DETECTORS], indent=2))
+    elif args.command == "detector" and args.detector_command == "evaluate":
+        from .detectors import evaluate_stylometric_baseline
+        source = Path(args.file)
+        try:
+            result = evaluate_stylometric_baseline(source.read_text(encoding="utf-8"))
+        except (OSError, ValueError, TypeError) as exc:
+            parser.error(str(exc))
+        serialized = json.dumps(result, indent=2, ensure_ascii=False)
+        if args.output:
+            target = Path(args.output)
+            if target.resolve() == source.resolve():
+                parser.error("Evaluation output must not overwrite the source file")
+            target.write_text(serialized + "\n", encoding="utf-8")
+        else:
+            print(serialized)
+    elif args.command == "detector" and args.detector_command == "benchmark":
+        from scripts.benchmark_stylometric_baseline import run_benchmark
+        try:
+            report = run_benchmark(Path(args.manifest_dir), Path(args.report_dir), seed=args.seed)
+            print(json.dumps({"status": "completed", "report_dir": str(args.report_dir)}, indent=2))
+        except Exception as exc:
+            parser.error(str(exc))
+    elif args.command == "detector" and args.detector_command == "split":
+        from scripts.prepare_detection_splits import prepare_splits
+        try:
+            summary = prepare_splits(Path(args.input), manifest_dir=Path(args.manifest_dir), max_records=args.max_records, seed=args.seed)
+            print(json.dumps(summary, indent=2))
+        except Exception as exc:
+            parser.error(str(exc))
     elif args.command == "model":
         print(json.dumps([spec.__dict__ for spec in MODELS], indent=2))
     elif args.command == "writing" and args.writing_command == "analyze":
-        from pathlib import Path
         from .writing import analyze_text, extract_document
         source_path = Path(args.file)
         try:
@@ -172,7 +213,6 @@ def main(argv: list[str] | None = None) -> int:
         except (OSError, ValueError, RuntimeError) as exc:
             parser.error(str(exc))
     elif args.command == "papers":
-        from pathlib import Path
         registry = Path(__file__).resolve().parent.parent / "docs" / "literature_review.md"
         content = registry.read_text(encoding="utf-8")
         sections = re.split(r"(?=^### P\d{2} — )", content, flags=re.MULTILINE)

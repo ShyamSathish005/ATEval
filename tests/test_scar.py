@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from ateval.revisions.academic_generation import AcademicRevisionProposal
+from ateval.revisions.academic_generation import AcademicRevisionProposal, XtraGPTOllamaGenerator
 from ateval.revisions.protected_content import protect_content, validate_and_restore
 from ateval.revisions.claim_validation import compare_claim_propositions
 from ateval.revisions.scar import SCARRevisionEngine, _generation_was_capped, revision_necessity_gate
@@ -48,6 +48,22 @@ class ProtectedContentTests(unittest.TestCase):
         self.assertIn("duplicate_protected_sentinel", duplicate.violations)
         self.assertIn("protected_span_sequence_changed", added_number.violations)
         self.assertIsNone(added_number.restored_text)
+
+
+class LocalModelEndpointTests(unittest.TestCase):
+    def test_ollama_endpoint_requires_exact_loopback_hostname(self):
+        valid = XtraGPTOllamaGenerator("model", model_file="model.gguf", base_url="http://127.0.0.1:11434")
+        self.assertEqual(valid.base_url, "http://127.0.0.1:11434")
+        for base_url in (
+            "http://127.0.0.1.attacker.example:11434",
+            "http://localhost.attacker.example:11434",
+            "http://user:pass@127.0.0.1:11434",
+            "https://127.0.0.1:11434",
+            "http://127.0.0.1:11434/api",
+        ):
+            with self.subTest(base_url=base_url):
+                with self.assertRaisesRegex(ValueError, "loopback"):
+                    XtraGPTOllamaGenerator("model", model_file="model.gguf", base_url=base_url)
 
     def test_reordered_typed_sentinels_fail_closed(self):
         protected = protect_content("We measured 12% for 3 days.")
@@ -98,6 +114,20 @@ class ProtectedContentTests(unittest.TestCase):
         self.assertTrue(result.passed)
         self.assertEqual(result.restored_text, source)
         self.assertEqual([item.original for item in protected.mapping].count("BERT"), 2)
+
+    def test_exact_raw_latex_echo_is_canonicalized_but_modified_source_fails(self):
+        source = r"We follow Smith \cite{smith2024} in Eq.~\ref{eq:one}."
+        protected = protect_content(source)
+        echoed = validate_and_restore(source, protected)
+        self.assertTrue(echoed.passed)
+        self.assertEqual(echoed.restored_text, source)
+
+        modified = validate_and_restore(
+            r"We follow Smith \cite{other2024} in Eq.~\ref{eq:one}.",
+            protected,
+        )
+        self.assertFalse(modified.passed)
+        self.assertIsNone(modified.restored_text)
 
 
 class GenerationCompletenessTests(unittest.TestCase):

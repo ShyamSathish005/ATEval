@@ -80,6 +80,45 @@ class ProtectedTextValidation:
         }
 
 
+def canonicalize_exact_protected_source(candidate: str, protected: ProtectedText) -> str:
+    """Convert exact model echoes of protected source into typed sentinels.
+
+    Some local instruction models copy short LaTeX commands instead of copying
+    the sentinel token.  Exact source matches are safe to canonicalize because
+    reconstruction still uses the original mapping; altered source is left
+    for the normal fail-closed validator.
+    """
+    normalized = candidate
+    sentinel_ranges = [(match.start(), match.end()) for match in _SENTINEL_RE.finditer(candidate)]
+
+    def occurrences_outside_sentinels(source: str) -> list[int]:
+        positions: list[int] = []
+        cursor = 0
+        while True:
+            position = candidate.find(source, cursor)
+            if position < 0:
+                return positions
+            end = position + len(source)
+            if not any(position < range_end and end > range_start for range_start, range_end in sentinel_ranges):
+                positions.append(position)
+            cursor = max(end, position + 1)
+
+    cursor = 0
+    replacements: list[tuple[int, int, str]] = []
+    for item in protected.mapping:
+        expected_count = sum(mapped.original == item.original for mapped in protected.mapping)
+        positions = occurrences_outside_sentinels(item.original)
+        available = [position for position in positions if position >= cursor]
+        if len(positions) != expected_count or not available:
+            continue
+        start = available[0]
+        replacements.append((start, start + len(item.original), item.sentinel))
+        cursor = start + len(item.original)
+    for start, end, sentinel in reversed(replacements):
+        normalized = normalized[:start] + sentinel + normalized[end:]
+    return normalized
+
+
 def _candidate_spans(text: str, terms: tuple[str, ...]) -> list[tuple[int, int, str]]:
     candidates: list[tuple[int, int, str]] = []
     for kind, pattern in _PATTERNS:
@@ -137,6 +176,7 @@ def protect_content(text: str, protected_terms: tuple[str, ...] | list[str] = ()
 def validate_and_restore(candidate: str, protected: ProtectedText) -> ProtectedTextValidation:
     if not isinstance(candidate, str) or not candidate.strip():
         return ProtectedTextValidation(False, None, ("empty_candidate",), tuple(item.sentinel for item in protected.mapping), (), (), (), protected.mapping)
+    candidate = canonicalize_exact_protected_source(candidate, protected)
     expected = {item.sentinel: item for item in protected.mapping}
     seen = _SENTINEL_RE.findall(candidate)
     counts = {sentinel: seen.count(sentinel) for sentinel in expected}

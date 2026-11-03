@@ -312,16 +312,16 @@ class LocalApiTests(unittest.TestCase):
         self.assertEqual(body["review_decision"], "REQUIRES_EXPERT_REVIEW")
         self.assertIsNone(body["inference"])
 
-    def test_manuscript_analysis_reports_unavailable_detectors_truthfully(self):
+    def test_manuscript_analysis_reports_experimental_detector_truthfully(self):
         response = self.client.post("/api/v1/manuscripts/analyze", files={
             "file": ("paper.txt", "A short academic passage.", "text/plain"),
         })
         self.assertEqual(response.status_code, 200, response.text)
         report = response.json()
-        self.assertEqual(report["detector_summary"]["available_method_count"], 0)
+        self.assertEqual(report["detector_summary"]["available_method_count"], 1)
         self.assertIsNone(report["detector_summary"]["overall_authorship_probability"])
-        self.assertEqual(report["coverage"]["ai_signal_passages_analyzed"], 0)
-        self.assertEqual(report["passages"][0]["analysis_status"], "not_analyzed")
+        self.assertEqual(report["coverage"]["ai_signal_passages_analyzed"], 1)
+        self.assertEqual(report["passages"][0]["analysis_status"], "analyzed")
         self.assertIn("false positives", report["detector_summary"]["warning"])
 
     def test_manuscript_analysis_rejects_unsupported_file_type(self):
@@ -371,6 +371,26 @@ class LocalApiTests(unittest.TestCase):
             })
         self.assertEqual(response.status_code, 503)
         self.assertIn("timeout", response.json()["detail"])
+
+    def test_manuscript_revision_uses_safety_aware_prompt_mode(self):
+        from unittest.mock import patch
+
+        class AvailableGenerator:
+            def __init__(self, *args, **kwargs):
+                self.mode = kwargs["mode"]
+
+            def generate(self, request):
+                raise RuntimeError(f"prompt mode={self.mode}")
+
+        with patch.object(local_api, "_ollama_revision_status", return_value={"available": True, "reason": None}), patch.object(local_api, "XtraGPTOllamaGenerator", AvailableGenerator):
+            response = self.client.post("/api/v1/writing/revise", json={
+                "sentence": "The method needs clarity.",
+                "paragraph_context": "The method needs clarity. This context gives the research setting.",
+                "intention": "clarity",
+                "author_requested_edit": True,
+            })
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("prompt mode=ateval", response.json()["detail"])
 
     @unittest.skipUnless(importlib.util.find_spec("joblib"), "optional revision-ml dependencies are not installed")
     def test_learned_revision_intent_is_advisory_and_not_persisted(self):

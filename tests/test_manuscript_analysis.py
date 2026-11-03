@@ -13,17 +13,17 @@ from ateval.manuscript_analysis.exports import export_reviewed_manuscript
 
 
 class ManuscriptImportTests(unittest.TestCase):
-    def test_text_source_map_is_exact_and_detector_state_is_unavailable(self):
+    def test_text_source_map_is_exact_and_detector_state_is_experimental(self):
         source = b"Introduction\n\nThe method uses 12% of the data."
         bundle = import_manuscript("paper.txt", source)
         report = analyze_manuscript(bundle)
         passage = next(item for item in report["passages"] if item["text"].startswith("The method"))
         self.assertTrue(passage["source_map"]["editable"])
         self.assertEqual(source.decode()[passage["source_map"]["start"]:passage["source_map"]["end"]], passage["text"])
-        self.assertEqual(report["detector_summary"]["available_method_count"], 0)
+        self.assertEqual(report["detector_summary"]["available_method_count"], 1)
         self.assertEqual(report["detector_summary"]["overall_authorship_probability"], None)
-        self.assertEqual(report["coverage"]["ai_signal_prose_coverage"], 0.0)
-        self.assertTrue(all(item["highlight_state"] == "grey" for item in report["passages"]))
+        self.assertEqual(report["coverage"]["ai_signal_prose_coverage"], 1.0)
+        self.assertTrue(all(item["highlight_state"] == "review" for item in report["passages"]))
 
     def test_long_document_and_repeated_passages_keep_distinct_stable_ids(self):
         source = ("Repeated sentence is included in the manuscript.\n\n" * 1000).encode()

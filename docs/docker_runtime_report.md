@@ -1,7 +1,7 @@
 # Docker runtime verification
 
 **Assessment date:** 2026-11-03  
-**Repository commit:** `bbfa15936ecf3b092cf0ef2f99a33ad6c0ecc270`
+**Repository commit:** `93246666b1e249304355f926b80d87622d92ca11`
 
 ## Result
 
@@ -12,9 +12,9 @@ not contain Docker:
 docker: command not found
 ```
 
-No claim is made for Docker Compose startup, health checks, manuscript upload,
-document analysis, loopback binding, temporary-file cleanup, or graceful
-shutdown.
+No claim is made for Docker Compose startup, health checks, synthetic LaTeX or
+LaTeX ZIP upload, document analysis, loopback binding, temporary-file cleanup,
+or graceful shutdown.
 
 ## Available evidence
 

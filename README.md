@@ -3,7 +3,7 @@
 
   <h1>ATEval</h1>
   <p><strong>Academic Text Evaluation &amp; Writing Intelligence</strong></p>
-  <p>Local-first research infrastructure for understanding, revising, and evaluating academic writing without treating language signals as proof of authorship.</p>
+  <p>Local-first academic manuscript revision that improves expression while preserving research content and author control.</p>
 
   <p>
     <a href="docs/installation.md"><img src="https://img.shields.io/badge/GET%20STARTED-installation-0ea5a8?style=flat-square" alt="Get started"></a>
@@ -20,7 +20,9 @@
   </p>
 </div>
 
-> **Research status:** ATEval is experimental, not production-ready or scientifically validated. Revision suggestions require author review. The project does not implement an AI-writing detector and must not be used to make authorship, misconduct, or academic-integrity determinations.
+> **Experimental alpha:** ATEval is not scientifically validated and every revision requires author review. Local model generation is not launch-approved until the declared model smoke test passes. The stylometric research signal is not an authorship detector and must not be used for authorship, misconduct, or academic-integrity determinations.
+
+> **Product promise:** Improve your academic writing. Preserve your research.
 
 ## What ATEval is
 
@@ -36,25 +38,26 @@ The design priorities are:
 
 ## Navigation
 
-| Start | Understand | Research | Project |
+| Start | Humanizer | Research | Project |
 |---|---|---|---|
-| [Installation](docs/installation.md) · [Quick start](docs/quick_start.md) | [Architecture](docs/architecture.md) · [Limitations](docs/known_limitations.md) | [Research](docs/RESEARCH.md) · [Evaluation](docs/EVALUATION.md) | [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) |
-| [Troubleshooting](docs/troubleshooting.md) · [OS notes](docs/os_installation.md) | [Privacy](PRIVACY.md) · [Data handling](docs/DATASETS_AND_LICENSING.md) | [Benchmarks](docs/revision_benchmark_report.md) · [SCAR](docs/scar_algorithm_specification.md) | [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.md) |
+| [Installation](docs/installation.md) · [Quick start](docs/quick_start.md) | [MVP scope](docs/MVP_SCOPE.md) · [User guide](docs/USER_GUIDE.md) | [Research](docs/RESEARCH.md) · [Evaluation](docs/EVALUATION.md) | [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) |
+| [Troubleshooting](docs/troubleshooting.md) · [OS notes](docs/os_installation.md) | [Privacy](docs/PRIVACY_AND_DATA_HANDLING.md) · [Data handling](docs/DATASETS_AND_LICENSING.md) | [Model setup](docs/MODEL_SETUP.md) · [Limitations](docs/ALPHA_LIMITATIONS.md) | [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.md) |
 
 ## Capability matrix
 
 | Capability | Status | Evidence and boundary |
 |---|---|---|
 | Local CLI, API, and React workspace | **Available** | `ateval/`, `frontend/`, and the tested CI workflow |
+| Academic Humanizer workspace | **Available for local review** | Source-mapped proposals, author decisions, undo, and approved export |
 | `.txt` and `.tex` manuscript ingestion | **Available** | Source-mapped local analysis; no TeX compilation |
 | LaTeX project ZIP ingestion | **Available** | Validated archive paths and preserved project assets |
 | DOCX and text-layer PDF ingestion | **Experimental** | Optional document dependencies; PDF output is read-only |
 | Descriptive academic-writing analysis | **Available** | Linguistic signals only; not authorship evidence |
 | Revision-intention classifier | **Experimental** | Grouped baselines are advisory and weak on rare classes |
 | SCAR selective revision pipeline | **Experimental** | Protected spans, fail-closed checks, and author approval required |
-| Model-backed generation | **Experimental** | User-managed local model/runtime; no weights bundled |
+| Model-backed generation | **Launch gate pending** | User-managed loopback Ollama model; no weights bundled; run the real-model smoke test |
 | Human-evaluation workflow | **Infrastructure available** | Blinded packet and annotation tooling exist; qualified outcomes remain pending |
-| AI-writing detector | **Not implemented** | No detector score or authorship conclusion is produced |
+| AI-writing evaluator baseline | **Experimental** | Deterministic stylometric signal; no calibration, benchmark, or authorship conclusion |
 | Public confidential-manuscript service | **Not offered** | Local loopback workflow only; review [privacy](PRIVACY.md) |
 
 ## Quick start
@@ -62,12 +65,16 @@ The design priorities are:
 Requires Python 3.11 or newer. The base install does not download models or datasets.
 
 ```sh
-python -m venv .venv
-. .venv/bin/activate              # Windows: .venv\Scripts\Activate.ps1
-python -m pip install -e .
-python -m ateval doctor
-python -m ateval --help
+git clone https://github.com/ShyamSathish005/ATEval.git
+cd ATEval
+./scripts/install_macos.sh
+./scripts/run_ateval.sh
 ```
+
+The macOS installer creates a virtual environment, installs local document
+support, builds the frontend, and runs the doctor check. It does not download
+model weights or datasets. See [installation](docs/installation.md) for
+manual, Windows/Linux, and Docker setup.
 
 For the local UI and document extraction:
 
@@ -125,7 +132,13 @@ The default workflow binds to loopback. Do not send unpublished manuscripts to a
 
 ## Release status
 
-The current branch is an alpha research preview. Main CI passes Python 3.11–3.13, frontend checks, dependency audits, archive hygiene, and the Docker image build. Docker Compose runtime verification, complete cross-platform installation evidence, and independent security/privacy review remain release gates. See the [release checklist](docs/release_checklist.md) and [readiness report](docs/release_readiness_report.md).
+The current branch is an alpha research preview. Main CI run
+[`41573865780`](https://github.com/ShyamSathish005/ATEval/actions/runs/41573865780)
+passes Python 3.11–3.13, frontend checks, dependency audits, archive hygiene,
+and the Docker image build. Docker Compose runtime verification, complete
+cross-platform installation evidence, and independent security/privacy review
+remain release gates. See the [release checklist](docs/release_checklist.md)
+and [readiness report](docs/release_readiness_report.md).
 
 ## Contributing and citation
 

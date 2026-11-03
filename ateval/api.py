@@ -35,6 +35,7 @@ from pydantic import BaseModel, Field
 
 from . import __version__
 from .registry import DETECTORS
+from .detectors import evaluate_stylometric_baseline
 from .schema import ALLOWED_LABELS, REQUIRED_FIELDS, DatasetRecord
 from .writing import analyze_text, apply_accepted_suggestions, extract_document, validate_preservation
 from .revisions.classic_models import context_text
@@ -293,7 +294,21 @@ def system_status():
 
 @app.get("/api/v1/detectors")
 def detectors():
-    return [{**spec.__dict__, "available": spec.status == "implemented-and-tested"} for spec in DETECTORS]
+    return [{**spec.__dict__, "available": spec.name == "stylometric-baseline",
+             "availability_note": "executable but unvalidated" if spec.name == "stylometric-baseline" else "planned"}
+            for spec in DETECTORS]
+
+
+class DetectorEvaluationRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=2_000_000)
+
+
+@app.post("/api/v1/evaluator/stylometric")
+def evaluate_stylometric(payload: DetectorEvaluationRequest):
+    try:
+        return evaluate_stylometric_baseline(payload.text)
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @app.get("/api/v1/datasets")
@@ -601,7 +616,7 @@ def writing_revision_proposal(payload: RevisionProposalRequest):
                 XTRAGPT_OLLAMA_MODEL,
                 model_file=XTRAGPT_GGUF_PATH,
                 base_url=XTRAGPT_OLLAMA_URL,
-                mode="published",
+                mode="ateval",
                 max_new_tokens=192,
                 context_length=2048,
             )

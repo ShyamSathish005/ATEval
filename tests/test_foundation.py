@@ -35,7 +35,7 @@ class FoundationTests(unittest.TestCase):
             DatasetRecord.from_mapping({"sample_id":"s", "text":"x", "label":"maybe", "source_id":"src", "dataset":"d"})
 
     def test_registry_does_not_claim_unimplemented_methods(self):
-        self.assertEqual(len(DETECTORS), 9)
+        self.assertEqual(len(DETECTORS), 10)
         self.assertEqual(detector_by_name("detectgpt").status, "planned")
         with self.assertRaises(KeyError):
             detector_by_name("made-up")

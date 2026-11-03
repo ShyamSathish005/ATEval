@@ -35,6 +35,9 @@ Engine plus the Compose plugin from your distribution or vendor repository.
 Create a virtual environment and follow the native setup commands. Keep the
 API bound to loopback unless deliberately configuring a reviewed deployment.
 
-Cross-platform installation has not yet been verified in clean macOS,
-Windows, and Linux environments. Report issues with OS and version details,
-but do not attach manuscript files or private data.
+Verification is limited: macOS has a clean local installation record and
+Ubuntu is exercised by hosted CI; a clean Windows installation and clean
+native Linux installation remain pending. Do not interpret these instructions
+as a compatibility certification. Report issues with OS and version details,
+but do not attach manuscript files or private data. See the
+[platform compatibility matrix](platform_compatibility.md).
