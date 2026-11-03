@@ -15,6 +15,9 @@ reproducibly.
   rejects or escalates when evidence is insufficient.
 - **Human evidence:** M4.4 supplies blinded packet generation and annotation
   infrastructure. Qualified reviewer outcomes are not yet completed.
+- **AI-writing evaluation:** M5 adds a transparent stylometric signal baseline
+  with passage-level evidence and uncertainty. It is not calibrated and is not
+  an authorship detector.
 
 ## How to interpret results
 

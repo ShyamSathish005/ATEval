@@ -9,12 +9,13 @@ from typing import Any
 
 from ..registry import DETECTORS
 from ..writing.analysis import _sections, _sentences, analyze_text
+from ..detectors import evaluate_passages
 from .documents import DocumentBundle, map_projection_span
 
 
 REPORT_WARNING = (
-    "Passage-level AI-writing detection is probabilistic and can produce false positives. "
-    "No supported detector is currently installed in this workspace; no authorship conclusion is available."
+    "AI-writing signals are probabilistic research diagnostics and can produce false positives. "
+    "No authorship conclusion is available."
 )
 
 
@@ -76,12 +77,13 @@ def analyze_manuscript(bundle: DocumentBundle, *, requested_config: dict[str, An
 
     methods = []
     for spec in DETECTORS:
+        executable = spec.name == "stylometric-baseline"
         methods.append({
             "detector_name": spec.name,
             "detector_version": None,
             "model_revision": None,
             "tokenizer_revision": None,
-            "status": "unavailable",
+            "status": "executable_unvalidated" if executable else "unavailable",
             "implementation_status": spec.status,
             "analyzed_passage_count": 0,
             "relevant_signal_count": 0,
@@ -90,11 +92,19 @@ def analyze_manuscript(bundle: DocumentBundle, *, requested_config: dict[str, An
             "score_distribution": None,
             "calibration_status": "not_calibrated",
             "uncertainty": "not_estimated",
-            "domain_applicability": "not_run; method is not implemented and tested in ATEval",
+            "domain_applicability": "experimental; no labelled benchmark or calibration" if executable else "not_run; method is not implemented and tested in ATEval",
             "execution_configuration": {"device": None, "precision": None, "parameters": {}, "optional_dependencies": list(spec.optional_dependencies)},
             "methodology": spec.description,
-            "known_limitations": ["This registered method is planned, not executable; no scores or passage signals were produced."],
+            "known_limitations": (["Executable heuristic with no labelled benchmark or calibration; not an authorship classifier."]
+                                  if executable else ["This registered method is planned, not executable; no scores or passage signals were produced."]),
         })
+
+    baseline = evaluate_passages(segment_rows)
+    baseline_method = next(method for method in methods if method["detector_name"] == "stylometric-baseline")
+    baseline_method["analyzed_passage_count"] = len(baseline)
+    baseline_method["relevant_signal_count"] = sum(row["method_results"][0]["signal_score"] >= 0.5 for row in baseline)
+    baseline_method["calibration_status"] = "not_calibrated"
+    baseline_method["uncertainty"] = "per_passage_heuristic"
 
     mapped_characters = sum(pointer is not None for pointer in bundle.pointers)
     coverage = round(mapped_characters / max(1, len(projection)), 4)
@@ -126,8 +136,8 @@ def analyze_manuscript(bundle: DocumentBundle, *, requested_config: dict[str, An
         },
         "coverage": {
             "descriptive_profile_prose_coverage": coverage,
-            "ai_signal_prose_coverage": 0.0,
-            "ai_signal_passages_analyzed": 0,
+            "ai_signal_prose_coverage": 1.0 if baseline else 0.0,
+            "ai_signal_passages_analyzed": len(baseline),
             "unsupported_element_count": len(bundle.unsupported),
             "unsupported_elements": bundle.unsupported,
             "source_mapped_passage_count": sum(bool(row["source_map"].get("path") or row["source_map"].get("paragraph") is not None or row["source_map"].get("page") is not None) for row in segment_rows),
@@ -144,14 +154,14 @@ def analyze_manuscript(bundle: DocumentBundle, *, requested_config: dict[str, An
         "detector_methods": methods,
         "prose_projection": projection,
         "detector_summary": {
-            "available_method_count": 0,
-            "unavailable_method_count": len(methods),
+            "available_method_count": 1,
+            "unavailable_method_count": len(methods) - 1,
             "overall_authorship_probability": None,
-            "interpretation": "No AI-writing detector is implemented and tested in this workspace. All passage-level AI signal states are unanalysed.",
+            "interpretation": "An uncalibrated stylometric research signal is available. It is not an authorship probability and has not been validated against labelled AI and human documents.",
             "warning": REPORT_WARNING,
         },
         "descriptive_writing_profile": profile,
-        "passages": segment_rows,
+        "passages": baseline,
         "academic_edit_suggestions": mapped_suggestions,
         "editable_suggestion_count": editable_suggestion_count,
         "limitations": [

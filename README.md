@@ -20,7 +20,7 @@
   </p>
 </div>
 
-> **Research status:** ATEval is experimental, not production-ready or scientifically validated. Revision suggestions require author review. The project does not implement an AI-writing detector and must not be used to make authorship, misconduct, or academic-integrity determinations.
+> **Research status:** ATEval is experimental, not production-ready or scientifically validated. Revision suggestions require author review. It now includes an uncalibrated stylometric research signal, not an authorship detector, and must not be used to make authorship, misconduct, or academic-integrity determinations.
 
 ## What ATEval is
 
@@ -54,7 +54,7 @@ The design priorities are:
 | SCAR selective revision pipeline | **Experimental** | Protected spans, fail-closed checks, and author approval required |
 | Model-backed generation | **Experimental** | User-managed local model/runtime; no weights bundled |
 | Human-evaluation workflow | **Infrastructure available** | Blinded packet and annotation tooling exist; qualified outcomes remain pending |
-| AI-writing detector | **Not implemented** | No detector score or authorship conclusion is produced |
+| AI-writing evaluator baseline | **Experimental** | Deterministic stylometric signal; no calibration, benchmark, or authorship conclusion |
 | Public confidential-manuscript service | **Not offered** | Local loopback workflow only; review [privacy](PRIVACY.md) |
 
 ## Quick start

@@ -22,6 +22,7 @@ class ModelSpec:
 
 
 DETECTORS = (
+    DetectorSpec("stylometric-baseline", "experimental", "Deterministic stylometric signal; uncalibrated and not an authorship classifier."),
     DetectorSpec("perplexity", "planned", "Mean token negative log likelihood and perplexity."),
     DetectorSpec("log_rank", "planned", "Mean token log-rank baseline."),
     DetectorSpec("entropy", "planned", "Predictive entropy baseline."),

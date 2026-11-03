@@ -312,16 +312,16 @@ class LocalApiTests(unittest.TestCase):
         self.assertEqual(body["review_decision"], "REQUIRES_EXPERT_REVIEW")
         self.assertIsNone(body["inference"])
 
-    def test_manuscript_analysis_reports_unavailable_detectors_truthfully(self):
+    def test_manuscript_analysis_reports_experimental_detector_truthfully(self):
         response = self.client.post("/api/v1/manuscripts/analyze", files={
             "file": ("paper.txt", "A short academic passage.", "text/plain"),
         })
         self.assertEqual(response.status_code, 200, response.text)
         report = response.json()
-        self.assertEqual(report["detector_summary"]["available_method_count"], 0)
+        self.assertEqual(report["detector_summary"]["available_method_count"], 1)
         self.assertIsNone(report["detector_summary"]["overall_authorship_probability"])
-        self.assertEqual(report["coverage"]["ai_signal_passages_analyzed"], 0)
-        self.assertEqual(report["passages"][0]["analysis_status"], "not_analyzed")
+        self.assertEqual(report["coverage"]["ai_signal_passages_analyzed"], 1)
+        self.assertEqual(report["passages"][0]["analysis_status"], "analyzed")
         self.assertIn("false positives", report["detector_summary"]["warning"])
 
     def test_manuscript_analysis_rejects_unsupported_file_type(self):
