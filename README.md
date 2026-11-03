@@ -125,7 +125,13 @@ The default workflow binds to loopback. Do not send unpublished manuscripts to a
 
 ## Release status
 
-The current branch is an alpha research preview. Main CI passes Python 3.11–3.13, frontend checks, dependency audits, archive hygiene, and the Docker image build. Docker Compose runtime verification, complete cross-platform installation evidence, and independent security/privacy review remain release gates. See the [release checklist](docs/release_checklist.md) and [readiness report](docs/release_readiness_report.md).
+The current branch is an alpha research preview. Main CI run
+[`41573865780`](https://github.com/ShyamSathish005/ATEval/actions/runs/41573865780)
+passes Python 3.11–3.13, frontend checks, dependency audits, archive hygiene,
+and the Docker image build. Docker Compose runtime verification, complete
+cross-platform installation evidence, and independent security/privacy review
+remain release gates. See the [release checklist](docs/release_checklist.md)
+and [readiness report](docs/release_readiness_report.md).
 
 ## Contributing and citation
 
