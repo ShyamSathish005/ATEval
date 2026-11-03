@@ -1,12 +1,16 @@
 # M0.2 release readiness
 
-**Assessment date:** 2026-11-02  
-**Base commit:** `38db980`  
-**Working branch:** `m0.2-ci-license-audit`
+**Assessment date:** 2026-11-03
+**Reviewed on main merge commit:** `bbfa15936ecf3b092cf0ef2f99a33ad6c0ecc270`
 
 ## Status
 
-**Not cleared for a formal release.** The pytest root cause is corrected and verified by hosted CI. Python 3.11, 3.12, 3.13, frontend and Docker jobs passed in runs [41479922335](https://github.com/ShyamSathish005/ATEval/actions/runs/41479922335) and [41480358638](https://github.com/ShyamSathish005/ATEval/actions/runs/41480358638); the latter verified report commit `036e636d3667a841a580860a1787b4da19415ec5`. Project ownership/release authority still requires confirmation from the project owner. No tag or release has been created.
+**Not cleared for a formal release.** The pytest root cause is corrected and
+the merged main commit passed hosted CI run
+[41572673696](https://github.com/ShyamSathish005/ATEval/actions/runs/41572673696).
+Project ownership/release authority, Docker runtime verification, complete
+platform coverage, and independent security/privacy review remain pending. No
+tag or release has been created.
 
 ## Work completed
 
@@ -31,14 +35,16 @@
 | Docker image build | Passed in hosted run 41479922335 on Ubuntu 24.04 |
 | Archive hygiene | Committed source archive passed `scripts/check_release_archive.py` |
 | CLI smoke tests | `python -m ateval --help` and `python -m ateval doctor` passed; optional model/spaCy/LaTeX services are absent as expected |
-| GitHub Actions matrix | Passed in runs 41479922335 and 41480358638 on Ubuntu 24.04 for Python 3.11, 3.12, 3.13, frontend and Docker; release-gate was skipped for the feature-branch push |
+| GitHub Actions main verification | Run 41572673696 passed on Ubuntu 24.04 for Python 3.11, 3.12, 3.13, frontend, Docker image build, and release-gate |
 
 The optional Milestone 3 model-artifact test remains skipped because its trained artifact is intentionally absent. The local Python and npm advisory lookups passed after granting the audit commands registry access. Diagnostic pytest logs and JUnit XML are saved outside the repository under `/private/tmp/ateval-m0.2-logs/`.
 
 ## Required before formal release
 
 1. Confirm the authorship/permissions history and authority to release the project-authored work under MIT; resolve any third-party licence/provenance questions that confirmation reveals.
-2. Re-run CI after any follow-up implementation change; the latest completed run verified report commit `036e636`.
-3. Keep the release untagged until rights confirmation is documented.
+2. Complete Docker Compose runtime verification, including health, upload,
+   analysis, loopback binding, cleanup, and graceful shutdown.
+3. Keep the release untagged until rights confirmation and all mandatory gates
+   are documented.
 
 If the hosted result or authority confirmation is unavailable, keep the project unreleased and describe the remaining blocker accurately. Do not mark the package production-ready based on local test results alone.

@@ -8,9 +8,10 @@ This alpha research preview includes a Python CLI and API, a React workspace, ma
 
 ATEval is an **alpha research preview**, not production-ready or scientifically
 validated. Formal publication remains blocked pending ownership and licence
-verification, clean installation checks on the claimed platforms, and
-independent security and privacy review. Hosted Linux CI and a local macOS
-check must not be presented as Windows support. See [known limitations](docs/known_limitations.md),
+verification, clean installation checks on the claimed platforms, Docker
+runtime verification, and independent security and privacy review. Hosted
+Linux CI and a local macOS check must not be presented as Windows support. See
+[known limitations](docs/known_limitations.md),
 [privacy statement](PRIVACY.md), and [security policy](SECURITY.md).
 
 | Feature | Status |

@@ -1,7 +1,8 @@
 # Final licence and provenance review
 
-**Review date:** 2026-11-02  
-**Scope:** Public repository state at `38db980` plus the M0.2 changes in this branch.
+**Review date:** 2026-11-03
+**Scope:** Public repository state at merged main commit
+`bbfa15936ecf3b092cf0ef2f99a33ad6c0ecc270`.
 
 ## Finding: release authority is not established
 
@@ -10,6 +11,10 @@ The repository contains an MIT `LICENSE` with the notice `Copyright (c) 2026 ATE
 Git author metadata records commit attribution, not copyright title or an assignment. The current records therefore do not establish that the named project owner wrote or owns every project file, that any external contributors assigned their rights, or that the project owner has authority to offer all project-authored material under MIT. The broad “ATEval contributors” copyright line is not substantiated by the available repository history. It has **not** been changed automatically.
 
 Before a formal release, the project owner should confirm authorship or permission for the files they contributed, identify any contributors whose rights are not assigned, and confirm authority to apply MIT to the project-authored portions. If that cannot be confirmed, obtain the necessary permissions and/or revise the release scope and copyright notice. This is an unresolved owner-confirmation item, not a claim that the project lacks authority.
+
+No separate explicit ownership declaration was supplied for this review.
+Accordingly, the ownership gate remains open and no copyright notice has been
+modified.
 
 ## Provenance categories
 
