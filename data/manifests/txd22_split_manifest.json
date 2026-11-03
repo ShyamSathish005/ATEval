@@ -1,0 +1,30 @@
+{
+  "dataset": "TXD-22",
+  "dataset_version": "1",
+  "source_sha256": "232c260f8caf7ea61a331f39fa730956862afbe0c5fc554720daa07d215a2f7d",
+  "seed": 42,
+  "grouping": {
+    "primary": "prompt",
+    "additional_identity_union": [
+      "document_id",
+      "author_id"
+    ]
+  },
+  "ratios": {
+    "train": 0.7,
+    "validation": 0.15,
+    "test": 0.15
+  },
+  "task_a_counts": {
+    "train": 39908,
+    "validation": 8551,
+    "test": 8541
+  },
+  "length_matched_test_count": 892,
+  "unseen_model_holdout": [],
+  "unseen_model_holdout_note": "Not claimed: shared prompts make strict prompt-disjoint unseen-model holdout degenerate for TXD-22 v1.",
+  "commands": [
+    "python3 scripts/prepare_detection_splits.py --manifest-dir /tmp/ateval-m5-manifests",
+    "python3 scripts/benchmark_stylometric_baseline.py --manifest-dir /tmp/ateval-m5-manifests --report-dir /tmp/ateval-m5-reports"
+  ]
+}

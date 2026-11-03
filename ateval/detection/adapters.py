@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import io
 import json
 from collections import Counter
 from dataclasses import dataclass
@@ -79,7 +80,7 @@ class TXD22Adapter:
     def map_source_label(cls, raw_source: str) -> tuple[str, str | None]:
         """Map raw source string to (benchmark_label, generator_model)."""
         normalized = raw_source.strip().casefold()
-        if normalized == "human":
+        if normalized in {"human", "human written", "human-written"}:
             return AuthorshipClass.HUMAN.value, None
         if normalized in cls.MIXED_CLASSES:
             return AuthorshipClass.MIXED.value, None
@@ -115,7 +116,19 @@ class TXD22Adapter:
         model_dist: Counter[str] = Counter()
         total_rows = 0
 
-        with open(file_path, "r", encoding="utf-8-sig", newline="") as stream:
+        raw_bytes = file_path.read_bytes()
+        try:
+            decoded = raw_bytes.decode("utf-8-sig")
+            source_encoding = "utf-8-sig"
+        except UnicodeDecodeError:
+            # TXD-22 v1 contains legacy single-byte punctuation despite
+            # otherwise being distributed as a CSV. Latin-1 provides a
+            # deterministic one-to-one fallback for all byte values.
+            # explicit so the chosen decoding is auditable and reproducible.
+            decoded = raw_bytes.decode("latin-1")
+            source_encoding = "latin-1"
+
+        with io.StringIO(decoded, newline="") as stream:
             reader = csv.DictReader(stream)
             if not reader.fieldnames or not {"Question", "Answer", "Source"}.issubset(reader.fieldnames):
                 raise ValueError(
@@ -155,6 +168,7 @@ class TXD22Adapter:
                         "raw_source": raw_source,
                         "question_length": len(question.split()),
                         "answer_length": len(answer.split()),
+                        "source_encoding": source_encoding,
                     },
                 )
                 validation_errors = rec.validate()

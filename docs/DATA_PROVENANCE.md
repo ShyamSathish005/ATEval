@@ -27,9 +27,18 @@ ATEval adheres to strict academic licensing, data provenance, and reproducibilit
 * **Cryptographic Hash (SHA-256):**  
   `232c260f8caf7ea61a331f39fa730956862afbe0c5fc554720daa07d215a2f7d`  
 * **Total Records:** 66,000 samples (22 classes, 3,000 per class)  
+* **Observed source labels:** `Human written` plus the four mixed labels use
+  the dataset's exact spelling and non-breaking-space variant; adapters preserve
+  these values in `original_label` before mapping them to benchmark classes.
 * **Human Participant Consent:** ~350 participants; voluntary; informed consent obtained; fully anonymized with zero PII retained.  
 * **Local Storage Path:** `data/raw/txd_22/txd22_raw.csv` (git-ignored)  
-* **Manifests:** `data/manifests/txd22_dataset_manifest.json`, `data/manifests/txd22_train_manifest.json`, `data/manifests/txd22_val_manifest.json`, `data/manifests/txd22_test_manifest.json`.
+* **Manifests:** `data/manifests/txd22_dataset_manifest.json` and
+  `data/manifests/txd22_split_manifest.json` are committed metadata-only
+  manifests. Full record manifests are generated under an external output
+  directory and are not committed.
+* **Encoding:** The downloaded v1 file is not valid UTF-8 throughout. The
+  loader attempts UTF-8-SIG and records a deterministic Latin-1 fallback in
+  each record's metadata.
 
 ---
 
@@ -71,4 +80,7 @@ Every transformation applied to raw external corpora is deterministic and audita
 3. **Partition Tracking:**
    - Record IDs are assigned deterministically as `{source_dataset}_{row_index:06d}`.
    - Document and prompt hash keys ensure zero leakage across split manifests.
-
+   - Split manifests use seed 42, prompt grouping, and identity unioning for
+     document and author IDs. TXD-22's repeated prompts prevent a valid
+     simultaneous unseen-generator and prompt-disjoint holdout; this is not
+     claimed by the primary run.

@@ -213,6 +213,28 @@ def bootstrap_ci(
     return round(estimates[low_idx], 4), round(estimates[high_idx], 4)
 
 
+def bootstrap_proportion_ci(
+    events: Sequence[bool],
+    *,
+    n_bootstraps: int = 500,
+    ci: float = 0.95,
+    seed: int = 42,
+) -> tuple[float, float]:
+    """Compute a percentile bootstrap interval for a binary event rate."""
+    if len(events) < 5:
+        return (0.0, 1.0)
+    rng = random.Random(seed)
+    estimates = [
+        sum(rng.choice(events) for _ in events) / len(events)
+        for _ in range(n_bootstraps)
+    ]
+    estimates.sort()
+    alpha = (1.0 - ci) / 2.0
+    low = max(0, min(int(alpha * len(estimates)), len(estimates) - 1))
+    high = max(0, min(int((1.0 - alpha) * len(estimates)), len(estimates) - 1))
+    return round(estimates[low], 4), round(estimates[high], 4)
+
+
 def evaluate_records(
     records: Sequence[DetectionRecord],
     *,
@@ -415,4 +437,3 @@ def evaluate_mixed_authorship_cohort(
         "results_by_subtype": summary,
         "interpretation": "Mixed-authorship samples occupy intermediate signal spaces; not binary classifiable.",
     }
-

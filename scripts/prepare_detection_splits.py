@@ -9,6 +9,11 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 from ateval.detection import (
     DatasetManifest,
@@ -32,7 +37,7 @@ def prepare_splits(
     *,
     manifest_dir: Path = MANIFEST_DIR,
     max_records: int | None = None,
-    unseen_models: tuple[str, ...] = ("gemini", "llama", "grok"),
+    unseen_models: tuple[str, ...] = (),
     seed: int = 42,
 ) -> dict[str, Any]:
     manifest_dir.mkdir(parents=True, exist_ok=True)
@@ -65,7 +70,7 @@ def prepare_splits(
         total_samples=len(records),
         class_distribution=dict(load_res.class_distribution) if input_path.exists() else {"Human": 5, "AI": 5, "Mixed": 2},
         transformations=[
-            "UTF-8 normalization and whitespace strip",
+            "Decode UTF-8-SIG; deterministic Latin-1 fallback for TXD-22 v1 legacy bytes",
             "Preserve verbatim Source as original_label",
             "Map Source to Task A (human/ai) and Task B (mixed)",
             "Extract prompt / Question as grouping key to prevent prompt leakage",
@@ -94,7 +99,20 @@ def prepare_splits(
     split_res = create_leakage_resistant_splits(task_a_records, split_cfg)
     print("Leakage audit:", json.dumps(split_res.leakage_audit, indent=2))
     if not split_res.leakage_audit["clean"]:
-        print("WARNING: Leakage detected across splits!", file=sys.stderr)
+        raise ValueError("Leakage detected across benchmark splits; refusing to write manifests.")
+    for split_name, split_records in (
+        ("train", split_res.train),
+        ("validation", split_res.val),
+        ("test", split_res.test),
+    ):
+        classes = {record.label for record in split_records}
+        if classes != {"human", "ai"}:
+            raise ValueError(
+                f"{split_name} split has classes {sorted(classes)!r}; "
+                "refusing a degenerate binary benchmark. "
+                "TXD-22 prompt grouping can make unseen-model holdouts incompatible "
+                "with class-balanced train/validation splits."
+            )
 
     # 4. Save train, val, test manifests
     def _save_manifest(recs: list[DetectionRecord], target: Path, meta: dict[str, Any]) -> None:
@@ -150,12 +168,19 @@ def main() -> int:
     parser.add_argument("--manifest-dir", type=Path, default=MANIFEST_DIR, help="Manifest output directory")
     parser.add_argument("--max-records", type=int, default=None, help="Max records to load")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for splitting")
+    parser.add_argument(
+        "--unseen-model",
+        action="append",
+        default=[],
+        help="Hold out a generator model only when prompt/document grouping remains valid; repeatable",
+    )
     args = parser.parse_args()
 
     summary = prepare_splits(
         args.input,
         manifest_dir=args.manifest_dir,
         max_records=args.max_records,
+        unseen_models=tuple(args.unseen_model),
         seed=args.seed,
     )
     print("Split preparation summary:", json.dumps(summary, indent=2))
@@ -164,4 +189,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

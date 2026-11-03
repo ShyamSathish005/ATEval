@@ -10,12 +10,18 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from collections import defaultdict
 from pathlib import Path
 from typing import Any
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 from ateval.detection import (
     DetectionRecord,
     analyze_feature_associations,
+    bootstrap_proportion_ci,
     evaluate_by_subgroup,
     evaluate_mixed_authorship_cohort,
     evaluate_records,
@@ -86,7 +92,7 @@ def run_benchmark(
     # 3. Length-matched evaluation
     length_matched_records = _load_manifest_records(length_matched_path) if length_matched_path.exists() else []
     if length_matched_records:
-        lm_metrics, _ = evaluate_records(length_matched_records, threshold=optimal_threshold, run_bootstrap=False)
+        lm_metrics, _ = evaluate_records(length_matched_records, threshold=optimal_threshold, run_bootstrap=True, seed=seed)
         print(f"Length-Matched Test Metrics: AUROC={lm_metrics.auroc:.4f}, F1={lm_metrics.f1:.4f}, FPR={lm_metrics.false_positive_rate:.4f}")
         length_matched_summary = lm_metrics.to_dict()
     else:
@@ -139,7 +145,10 @@ def run_benchmark(
         "human_samples_evaluated": len(human_details),
         "false_positive_count": fp_count,
         "overall_false_positive_rate": round(human_fpr, 4),
-        "ci_fpr_95": test_metrics.ci_fpr,
+        "ci_fpr_95": bootstrap_proportion_ci(
+            [d["signal_score"] >= optimal_threshold for d in human_details],
+            seed=seed,
+        ),
         "false_positive_by_length_bin": human_length_fpr,
         "interpretation": (
             "Stylometric features such as low sentence-length variation and high vocabulary uniformity "
@@ -192,4 +201,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

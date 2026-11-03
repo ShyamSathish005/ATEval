@@ -12,6 +12,7 @@ from .evaluation import (
     EvaluationMetrics,
     analyze_feature_associations,
     bootstrap_ci,
+    bootstrap_proportion_ci,
     calculate_auprc,
     calculate_auroc,
     calculate_classification_metrics,
@@ -50,6 +51,7 @@ __all__ = [
     "TaskKind",
     "analyze_feature_associations",
     "bootstrap_ci",
+    "bootstrap_proportion_ci",
     "calculate_auprc",
     "calculate_auroc",
     "calculate_classification_metrics",
@@ -65,4 +67,3 @@ __all__ = [
     "prepare_task_c_domain_cohort",
     "prepare_task_d_passage_cohort",
 ]
-
