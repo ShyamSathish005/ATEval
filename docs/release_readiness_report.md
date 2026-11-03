@@ -7,12 +7,14 @@
 
 ## Decision
 
-**Narrowly scoped alpha candidate; operational limitations remain.** Main CI
+**Narrowly scoped alpha released; operational limitations remain.** Main CI
 run `41595840933` passed all jobs, and the separate M6.4 security review is
 recorded in [INDEPENDENT_SECURITY_REVIEW_M6_4.md](INDEPENDENT_SECURITY_REVIEW_M6_4.md).
 The supported release scope is macOS with local Ollama. Docker Compose runtime
 verification, clean physical-machine installation, and broader platform
 coverage remain unverified; they are not advertised as supported.
+The release is published as `v0.1.0-alpha.1`; these limitations remain part of
+the release scope.
 
 ## Verified
 
