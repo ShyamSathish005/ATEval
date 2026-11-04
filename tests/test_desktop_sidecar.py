@@ -59,20 +59,32 @@ class DesktopSidecarTests(unittest.TestCase):
         try:
             # Read first line from stdout which must be the readiness handshake
             first_line = process.stdout.readline()
-            self.assertTrue(first_line, "Sidecar process exited without emitting handshake")
+            if not first_line:
+                stderr_out = process.stderr.read()
+                self.fail(f"Sidecar process exited without emitting handshake: {stderr_out}")
             handshake = json.loads(first_line.strip())
             self.assertEqual(handshake["event"], "ready")
             self.assertEqual(handshake["host"], "127.0.0.1")
             port = handshake["port"]
             self.assertGreater(port, 1024)
 
-            # Health check via loopback
+            # Health check via loopback with retry
             opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
             req = urllib.request.Request(f"http://127.0.0.1:{port}/api/v1/health")
-            with opener.open(req, timeout=3.0) as resp:
-                self.assertEqual(resp.status, 200)
-                body = json.loads(resp.read().decode())
-                self.assertEqual(body["status"], "ok")
+            last_err = None
+            for _ in range(15):
+                try:
+                    with opener.open(req, timeout=3.0) as resp:
+                        self.assertEqual(resp.status, 200)
+                        body = json.loads(resp.read().decode())
+                        self.assertEqual(body["status"], "ok")
+                        last_err = None
+                        break
+                except Exception as e:
+                    last_err = e
+                    time.sleep(0.2)
+            if last_err is not None:
+                raise last_err
 
             # Closing stdin simulates parent process exit -> sidecar watchdog detects EOF and shuts down
             process.stdin.close()

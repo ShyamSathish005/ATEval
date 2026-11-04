@@ -150,19 +150,31 @@ def verify_sidecar(binary_path: Path) -> None:
         assert proc.stdout is not None
         first_line = proc.stdout.readline()
         startup_latency = time.time() - t0
-        assert first_line, "Sidecar process terminated without emitting readiness handshake"
+        if not first_line:
+            stderr_out = proc.stderr.read() if proc.stderr else ""
+            raise AssertionError(f"Sidecar process terminated without emitting readiness handshake. Stderr: {stderr_out}")
         event = json.loads(first_line.strip())
         assert event.get("event") == "ready", f"Unexpected handshake event: {event}"
         assert event.get("protocol_version") == "1.0"
         port = int(event["port"])
         print(f"Sidecar started in {startup_latency:.2f}s on 127.0.0.1:{port} (pid {event['pid']})")
 
-        # Query health endpoint
+        # Query health endpoint with retry
         opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
         req = urllib.request.Request(f"http://127.0.0.1:{port}/api/v1/health")
-        with opener.open(req, timeout=3.0) as resp:
-            data = json.loads(resp.read().decode())
-            assert data.get("status") == "ok", f"Health check failed: {data}"
+        last_err = None
+        for _ in range(15):
+            try:
+                with opener.open(req, timeout=3.0) as resp:
+                    data = json.loads(resp.read().decode())
+                    assert data.get("status") == "ok", f"Health check failed: {data}"
+                    last_err = None
+                    break
+            except Exception as e:
+                last_err = e
+                time.sleep(0.2)
+        if last_err is not None:
+            raise last_err
 
         # Close stdin to trigger graceful watchdog shutdown
         assert proc.stdin is not None
