@@ -42,16 +42,6 @@ SAFE_DOCS = {
     "DOCUMENT_PRESERVATION.md",
     "HUMANIZER_ACCEPTANCE_TESTS.md",
     "HUMANIZER_IMPLEMENTATION.md",
-    "INDEPENDENT_SECURITY_REVIEW_M6_4.md",
-    "M6_1_END_TO_END_VALIDATION.md",
-    "M6_2_LAUNCH_CHECKLIST.md",
-    "M6_3_PROTECTED_CONTENT_VALIDATION.md",
-    "M6_4_RELEASE_READINESS.md",
-    "M6_6_EXPERIMENT_ENDPOINT_DECISION.md",
-    "M6_6_PERFORMANCE_AND_CONCURRENCY.md",
-    "M6_6_REMEDIATION_STATUS.md",
-    "M6_6_SECURITY_REMEDIATION.md",
-    "M5_2_FAILURE_ANALYSIS.md",
     "ACADEMIC_DOMAIN_GAP.md",
     "DETECTOR_FEATURE_ANALYSIS.md",
     "MODEL_PROVENANCE.md",
@@ -77,23 +67,6 @@ SAFE_DOCS = {
     "intent_model_failure_analysis.md",
     "known_limitations.md",
     "literature_review.md",
-    "m0_2_release_readiness.md",
-    "milestone_3_initial_audit.md",
-    "milestone_3_report.md",
-    "milestone_4_1_failure_analysis.md",
-    "milestone_4_1_generation_benchmark.md",
-    "milestone_4_1_model_feasibility.md",
-    "milestone_4_1_semantic_preservation.md",
-    "milestone_4_2_experiment_report.md",
-    "milestone_4_2_failure_taxonomy.md",
-    "milestone_4_3_results.md",
-    "milestone_4_3_scar_failure_analysis.md",
-    "milestone_4_4_annotation_report.md",
-    "milestone_4_4_human_evaluation_protocol.md",
-    "milestone_4_4_results.md",
-    "milestone_4_4_statistical_analysis.md",
-    "milestone_4_5_implementation_audit.md",
-    "milestone_4_5_report.md",
     "milestone_4_report.md",
     "no_edit_annotation_protocol.md",
     "os_installation.md",
@@ -127,9 +100,6 @@ SAFE_DOCS = {
 SAFE_DOCS_ASSETS = {
     "ateval-hero.svg",
 }
-SAFE_DOCS_DESKTOP = {
-    "M7_EXECUTION_STATE.md",
-}
 
 
 def forbidden(path: str) -> bool:
@@ -147,10 +117,6 @@ def forbidden(path: str) -> bool:
             elif len(remaining) == 1 and remaining[0] == "assets":
                 pass
             elif len(remaining) == 2 and remaining[0] == "assets" and remaining[1] in SAFE_DOCS_ASSETS:
-                pass
-            elif len(remaining) == 1 and remaining[0] == "desktop":
-                pass
-            elif len(remaining) == 2 and remaining[0] == "desktop" and remaining[1] in SAFE_DOCS_DESKTOP:
                 pass
             else:
                 return True
