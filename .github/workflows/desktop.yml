@@ -1,0 +1,84 @@
+name: Desktop POC
+
+on:
+  push:
+    branches:
+      - main
+      - "feat/m7*"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos-desktop:
+    name: macOS Apple Silicon Desktop Bundle
+    runs-on: macos-14
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Rust Cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Install Python build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install pyinstaller
+
+      - name: Build PyInstaller Desktop Sidecar Binary
+        run: |
+          python scripts/build_desktop_sidecar.py
+
+      - name: Run Desktop Python Tests
+        run: |
+          python -m pytest tests/test_desktop_sidecar.py tests/test_desktop_packaging.py
+
+      - name: Build Frontend Client Assets
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+          npm run test:sites
+
+      - name: Build Tauri Native Desktop App
+        run: |
+          cd frontend
+          npx tauri build
+
+      - name: Upload Desktop Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ateval-macos-desktop-aarch64
+          path: |
+            src-tauri/target/release/bundle/macos/*.app
+            src-tauri/target/release/bundle/dmg/*.dmg
+          if-no-files-found: warn

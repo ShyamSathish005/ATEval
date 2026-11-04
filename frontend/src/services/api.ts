@@ -156,8 +156,69 @@ export type ReviewItem = {
   candidate_count: number; candidates: ReviewCandidate[];
 };
 
+let customApiBase = "";
+let launchToken = "";
+
+export function configureApi(base: string, token?: string): void {
+  customApiBase = base ? base.replace(/\/$/, "") : "";
+  if (token !== undefined) {
+    launchToken = token;
+  }
+}
+
+export function getApiBaseUrl(): string {
+  return customApiBase;
+}
+
+export function getLaunchToken(): string {
+  return launchToken;
+}
+
+export function getApiUrl(path: string): string {
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  return `${customApiBase}/api/v1${cleanPath}`;
+}
+
+export function getAuthHeaders(extra?: HeadersInit): Headers {
+  const headers = new Headers(extra);
+  if (launchToken) {
+    headers.set("X-ATEval-Token", launchToken);
+  }
+  return headers;
+}
+
+export type DesktopConnection = {
+  host: string;
+  port: number;
+  token: string;
+  pid?: number;
+};
+
+export async function initDesktopConnection(): Promise<DesktopConnection | null> {
+  const isTauri = typeof window !== "undefined" && ("__TAURI_INTERNALS__" in window || "__TAURI__" in window);
+  if (!isTauri) {
+    return null;
+  }
+
+  try {
+    const invoke = (window as unknown as { __TAURI_INTERNALS__?: { invoke: (cmd: string, args?: unknown) => Promise<unknown> } }).__TAURI_INTERNALS__?.invoke;
+    if (typeof invoke === "function") {
+      const conn = (await invoke("get_backend_connection")) as DesktopConnection;
+      if (conn?.port) {
+        configureApi(`http://${conn.host || "127.0.0.1"}:${conn.port}`, conn.token);
+        return conn;
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to retrieve Tauri backend connection:", err);
+  }
+  return null;
+}
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`/api/v1${path}`, init);
+  const url = getApiUrl(path);
+  const headers = getAuthHeaders(init?.headers);
+  const response = await fetch(url, { ...init, headers });
   const type = response.headers.get("content-type") ?? "";
   const body = type.includes("application/json") ? await response.json() : null;
   if (!response.ok) {
@@ -169,7 +230,10 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
 export function uploadFile<T>(path: string, file: File, onProgress: (percent: number | null) => void): Promise<T> {
   return new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
-    request.open("POST", `/api/v1${path}`);
+    request.open("POST", getApiUrl(path));
+    if (launchToken) {
+      request.setRequestHeader("X-ATEval-Token", launchToken);
+    }
     request.timeout = 180_000;
     request.upload.onprogress = (event) => onProgress(event.lengthComputable && event.total > 0 ? Math.round((event.loaded / event.total) * 100) : null);
     request.onerror = () => reject(new Error("Could not reach the local ATEval API. Check that the local server is running."));
@@ -189,6 +253,19 @@ export function uploadFile<T>(path: string, file: File, onProgress: (percent: nu
     form.append("file", file, file.name);
     // Do not set Content-Type: the browser must add the multipart boundary.
     request.send(form);
+  });
+}
+
+export async function exportManuscriptApi(file: File, acceptedEdits: unknown[]): Promise<Response> {
+  const form = new FormData();
+  form.append("file", file);
+  form.append("accepted_edits", JSON.stringify(acceptedEdits));
+  const url = getApiUrl("/manuscripts/export");
+  const headers = getAuthHeaders();
+  return fetch(url, {
+    method: "POST",
+    headers,
+    body: form,
   });
 }
 
