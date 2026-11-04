@@ -118,9 +118,17 @@ SAFE_DOCS = {
     "troubleshooting.md",
     "upload_integration_test_report.md",
     "writing_engine_evaluation.md",
+    "DESKTOP_APP_ARCHITECTURE.md",
+    "DESKTOP_INSTALLATION.md",
+    "DESKTOP_SECURITY.md",
+    "DESKTOP_MODEL_SETUP.md",
+    "M7_VALIDATION_RESULTS.md",
 }
 SAFE_DOCS_ASSETS = {
     "ateval-hero.svg",
+}
+SAFE_DOCS_DESKTOP = {
+    "M7_EXECUTION_STATE.md",
 }
 
 
@@ -139,6 +147,10 @@ def forbidden(path: str) -> bool:
             elif len(remaining) == 1 and remaining[0] == "assets":
                 pass
             elif len(remaining) == 2 and remaining[0] == "assets" and remaining[1] in SAFE_DOCS_ASSETS:
+                pass
+            elif len(remaining) == 1 and remaining[0] == "desktop":
+                pass
+            elif len(remaining) == 2 and remaining[0] == "desktop" and remaining[1] in SAFE_DOCS_DESKTOP:
                 pass
             else:
                 return True
