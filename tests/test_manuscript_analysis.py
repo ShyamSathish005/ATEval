@@ -167,6 +167,70 @@ class ManuscriptImportTests(unittest.TestCase):
         with self.assertRaises((ValueError, RuntimeError)):
             import_manuscript("paper.pdf", b"not a pdf")
 
+    def test_sec02_zip_and_docx_decompression_safety(self):
+        from ateval.manuscript_analysis import documents
+
+        # 1. Spoofed size metadata: ZipExtFile yields 5000 bytes even when ZipInfo.file_size is spoofed to 1 byte
+        raw_buf = io.BytesIO()
+        with zipfile.ZipFile(raw_buf, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("main.tex", "\\begin{document}" + ("A" * 5000) + "\\end{document}")
+        raw_bytes = raw_buf.getvalue()
+        orig_infolist = zipfile.ZipFile.infolist
+        orig_open = zipfile.ZipFile.open
+
+        def spoofed_infolist(zf_self):
+            infos = orig_infolist(zf_self)
+            for item in infos:
+                item.file_size = 1
+            return infos
+
+        def spoofed_open(zf_self, name, mode="r", pwd=None, *, force_zip64=False):
+            return io.BytesIO(b"\\begin{document}" + (b"A" * 5000) + b"\\end{document}")
+
+        with patch.object(zipfile.ZipFile, "infolist", spoofed_infolist), patch.object(zipfile.ZipFile, "open", spoofed_open), patch.object(documents, "MAX_PROJECT_SINGLE_FILE_BYTES", 1024):
+            with self.assertRaisesRegex(ValueError, "expands beyond the single-file safety limit"):
+                import_manuscript("project.zip", raw_bytes)
+
+        with patch.object(zipfile.ZipFile, "infolist", spoofed_infolist), patch.object(zipfile.ZipFile, "open", spoofed_open), patch.object(documents, "MAX_PROJECT_EXPANDED_BYTES", 1024):
+            with self.assertRaisesRegex(ValueError, "expands beyond the safety limit"):
+                import_manuscript("project.zip", raw_bytes)
+
+        # 2. High-compression-ratio archive (ZIP bomb) is aborted during streaming
+        bomb_buf = io.BytesIO()
+        with zipfile.ZipFile(bomb_buf, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("main.tex", "\\begin{document}\n" + ("0" * (512 * 1024)) + "\n\\end{document}")
+        with self.assertRaisesRegex(ValueError, "compression ratio"):
+            import_manuscript("bomb.zip", bomb_buf.getvalue())
+
+        # 3. Absolute paths and duplicate normalized entries are rejected
+        abs_buf = io.BytesIO()
+        with zipfile.ZipFile(abs_buf, "w") as archive:
+            archive.writestr("/etc/passwd", "root:x:0:0")
+        with self.assertRaisesRegex(ValueError, "unsafe file path"):
+            import_manuscript("abs.zip", abs_buf.getvalue())
+
+        dup_buf = io.BytesIO()
+        with zipfile.ZipFile(dup_buf, "w") as archive:
+            archive.writestr("sections/./intro.tex", "A")
+            archive.writestr("sections/intro.tex", "B")
+        with self.assertRaisesRegex(ValueError, "duplicate path"):
+            import_manuscript("dup.zip", dup_buf.getvalue())
+
+        # 4. Malformed archive fails cleanly with ValueError
+        with self.assertRaisesRegex(ValueError, "malformed"):
+            import_manuscript("corrupt.zip", b"PK\x03\x04corrupted-zip-payload")
+
+        # 5. Oversized DOCX XML entry or high-ratio DOCX bomb is rejected before python-docx parsing
+        docx_bomb = io.BytesIO()
+        with zipfile.ZipFile(docx_bomb, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("word/document.xml", "<w:document>" + ("A" * (512 * 1024)) + "</w:document>")
+        if importlib.util.find_spec("docx"):
+            with self.assertRaisesRegex(ValueError, "compression ratio"):
+                import_manuscript("bomb.docx", docx_bomb.getvalue())
+            with patch.object(documents, "MAX_DOCX_SINGLE_FILE_BYTES", 128), patch.object(documents, "MAX_COMPRESSION_RATIO", 10000.0):
+                with self.assertRaisesRegex(ValueError, "single-file"):
+                    import_manuscript("large-xml.docx", docx_bomb.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

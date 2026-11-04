@@ -1,3 +1,6 @@
+# Public synthetic demo blueprint only (autoDeploy disabled).
+# IMPORTANT: ATEVAL_PUBLIC_DEMO must remain "1" on any internet-accessible
+# deployment so arbitrary manuscript uploads and local write routes stay disabled.
 services:
   - type: web
     name: ateval-alpha-demo
@@ -10,6 +13,10 @@ services:
     dockerContext: .
     envVars:
       - key: ATEVAL_PUBLIC_DEMO
+        value: "1"
+      - key: ATEVAL_ENABLE_RESEARCH_EXPERIMENTS
+        value: "0"
+      - key: ATEVAL_TRUSTED_PROXY_HOPS
         value: "1"
       - key: ATEVAL_ALLOWED_HOSTS
         value: ateval-alpha-demo.onrender.com

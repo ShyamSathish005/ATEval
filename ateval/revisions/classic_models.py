@@ -4,13 +4,22 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import platform
+import re
 import unicodedata
 from collections import Counter
 from pathlib import Path
 from typing import Any, Iterable
 
 from .schema import RevisionRecord
+
+DECLARATIVE_MODEL_SCHEMA = "ateval-revision-declarative-model-v1"
+METADATA_SCHEMA = "ateval-revision-classifier-metadata-v2"
+ALLOWED_MODEL_ROOT = Path(__file__).resolve().parents[2] / "models" / "revisions"
+# Build-pinned integrity digest map for official bundled artifacts (when shipped).
+PINNED_MODEL_DIGESTS: dict[str, str] = {}
+_WORD_TOKEN_RE = re.compile(r"(?u)\b\w\w+\b")
 
 
 def context_text(record: RevisionRecord, level: str = "local") -> str:
@@ -254,18 +263,17 @@ def train_compare(
             report["models"][context_level][kind]["test_by_domain"] = domain_results
             best_models[(context_level, kind)] = final_model
     output.mkdir(parents=True)
-    from joblib import dump
     import sklearn
     source_files = [Path(__file__), Path(__file__).with_name("datasets.py"), Path(__file__).with_name("taxonomy.py"), Path(__file__).with_name("schema.py")]
     source_digest = hashlib.sha256("".join(_hash for _hash in (hashlib.sha256(path.read_bytes()).hexdigest() for path in source_files)).encode()).hexdigest()
     dataset_manifest_path = Path("data/manifests/revision_training_manifest.json")
     dataset_manifest_hash = hashlib.sha256(dataset_manifest_path.read_bytes()).hexdigest() if dataset_manifest_path.exists() else None
     for (context_level, kind), model in best_models.items():
-        path = output / f"{context_level}-{kind}.joblib"
-        dump(model, path)
+        path = output / f"{context_level}-{kind}.model.json"
+        save_declarative_model(model, path, context_level=context_level, kind=kind)
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         (output / f"{context_level}-{kind}.metadata.json").write_text(json.dumps({
-            "schema": "ateval-revision-classifier-metadata-v1", "model_type": kind,
+            "schema": METADATA_SCHEMA, "model_type": kind,
             "context_level": context_level, "training_records": len(train),
             "training_source_document_ids": sorted({r.source_document_id for r in train}),
             "seed": seed, "selected_C_by_dev_macro_f1": report["models"][context_level][kind]["selected_C_by_dev_macro_f1"],
@@ -275,7 +283,294 @@ def train_compare(
             "source_code_sha256": source_digest,
             "feature_config": {"word_tfidf": {"analyzer": "word", "ngram_range": [1, 2], "max_features": 12000}, "char_tfidf": {"analyzer": "char", "ngram_range": [3, 5], "min_df": 3, "max_features": 12000}},
             "calibration": "sigmoid/Platt through 2-fold stratified document-grouped CV" if kind == "linear_svm" else "uncalibrated LogisticRegression predict_proba; ECE reported",
-            "security_note": "Only load artifacts created and controlled by this workspace; joblib files use pickle serialization.",
+            "security_note": "Declarative JSON model format (vocabulary + numeric weights). No pickle or joblib deserialization is used. File hash checks verify integrity on disk but are not a sandbox against code already running inside the process.",
         }, indent=2) + "\n", encoding="utf-8")
     (output / "comparison.json").write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     return report
+
+
+def _strip_accents_unicode(text: str) -> str:
+    normalized = unicodedata.normalize("NFKD", text)
+    if normalized == text:
+        return text
+    return "".join(ch for ch in normalized if not unicodedata.combining(ch))
+
+
+def _extract_word_ngrams(text: str, ngram_range: tuple[int, int]) -> Counter[str]:
+    clean = _strip_accents_unicode(text).lower()
+    tokens = _WORD_TOKEN_RE.findall(clean)
+    counts: Counter[str] = Counter()
+    min_n, max_n = ngram_range
+    n_tokens = len(tokens)
+    for n in range(min_n, max_n + 1):
+        if n == 1:
+            counts.update(tokens)
+        else:
+            for idx in range(n_tokens - n + 1):
+                counts[" ".join(tokens[idx : idx + n])] += 1
+    return counts
+
+
+def _extract_char_ngrams(text: str, ngram_range: tuple[int, int]) -> Counter[str]:
+    clean = re.sub(r"\s+", " ", text.lower())
+    counts: Counter[str] = Counter()
+    min_n, max_n = ngram_range
+    text_len = len(clean)
+    for n in range(min_n, max_n + 1):
+        for idx in range(text_len - n + 1):
+            counts[clean[idx : idx + n]] += 1
+    return counts
+
+
+class DeclarativeLinearModel:
+    """Safe declarative TF-IDF + linear classifier reconstructed from validated JSON."""
+
+    def __init__(self, payload: dict[str, Any]) -> None:
+        if not isinstance(payload, dict) or payload.get("schema") != DECLARATIVE_MODEL_SCHEMA:
+            raise ValueError("Invalid declarative model schema")
+        classes = payload.get("classes")
+        if not isinstance(classes, list) or not classes or not all(isinstance(c, str) and c for c in classes):
+            raise ValueError("Declarative model must define non-empty string classes")
+        self.classes_: list[str] = list(classes)
+        self.model_type: str = str(payload.get("model_type", "logistic_regression"))
+        self.context_level: str = str(payload.get("context_level", "local"))
+
+        word_cfg = payload.get("word_tfidf")
+        char_cfg = payload.get("char_tfidf")
+        if not isinstance(word_cfg, dict) or not isinstance(char_cfg, dict):
+            raise ValueError("Declarative model is missing TF-IDF configuration")
+        self._word_vocab, self._word_idf, self._word_ngram, self._word_sublinear = self._validate_tfidf_block(word_cfg, "word_tfidf")
+        self._char_vocab, self._char_idf, self._char_ngram, self._char_sublinear = self._validate_tfidf_block(char_cfg, "char_tfidf")
+        self._n_features = len(self._word_idf) + len(self._char_idf)
+
+        clf = payload.get("classifier")
+        if not isinstance(clf, dict):
+            raise ValueError("Declarative model is missing classifier weights")
+        coef = clf.get("coef")
+        intercept = clf.get("intercept")
+        if not isinstance(coef, list) or not isinstance(intercept, list) or not coef or len(coef) != len(intercept):
+            raise ValueError("Classifier coef and intercept dimensions are invalid")
+        n_rows = len(coef)
+        if len(self.classes_) == 2 and n_rows != 1:
+            raise ValueError("Binary linear classifier must have 1 coefficient row")
+        if len(self.classes_) > 2 and n_rows != len(self.classes_):
+            raise ValueError("Multiclass linear classifier row count must match class count")
+        self._coef: list[list[float]] = []
+        for row in coef:
+            if not isinstance(row, list) or len(row) != self._n_features:
+                raise ValueError("Classifier coefficient vector length does not match TF-IDF feature count")
+            self._coef.append([self._finite_float(val, "coef") for val in row])
+        self._intercept: list[float] = [self._finite_float(val, "intercept") for val in intercept]
+
+    @staticmethod
+    def _finite_float(value: Any, field: str) -> float:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError(f"Non-numeric value in {field}")
+        result = float(value)
+        if not math.isfinite(result):
+            raise ValueError(f"Non-finite float in {field}")
+        return result
+
+    def _validate_tfidf_block(
+        self, block: dict[str, Any], name: str
+    ) -> tuple[dict[str, int], list[float], tuple[int, int], bool]:
+        vocab = block.get("vocabulary")
+        idf = block.get("idf")
+        ngram = block.get("ngram_range", [1, 2])
+        sublinear = bool(block.get("sublinear_tf", True))
+        if not isinstance(vocab, dict) or not isinstance(idf, list) or len(vocab) != len(idf):
+            raise ValueError(f"Invalid vocabulary/idf in {name}")
+        if not isinstance(ngram, list) or len(ngram) != 2 or not all(isinstance(x, int) and 1 <= x <= 10 for x in ngram) or ngram[0] > ngram[1]:
+            raise ValueError(f"Invalid ngram_range in {name}")
+        idf_floats = [self._finite_float(x, f"{name}.idf") for x in idf]
+        n = len(idf_floats)
+        clean_vocab: dict[str, int] = {}
+        seen_indices: set[int] = set()
+        for token, idx in vocab.items():
+            if not isinstance(token, str) or isinstance(idx, bool) or not isinstance(idx, int) or not (0 <= idx < n):
+                raise ValueError(f"Invalid vocabulary entry in {name}")
+            seen_indices.add(idx)
+            clean_vocab[token] = idx
+        if len(seen_indices) != n:
+            raise ValueError(f"Vocabulary indices in {name} are not a bijection")
+        return clean_vocab, idf_floats, (int(ngram[0]), int(ngram[1])), sublinear
+
+    def _vectorize_one(self, text: str) -> dict[int, float]:
+        sparse: dict[int, float] = {}
+        word_counts = _extract_word_ngrams(text, self._word_ngram)
+        word_sq_sum = 0.0
+        word_vec: dict[int, float] = {}
+        for term, count in word_counts.items():
+            idx = self._word_vocab.get(term)
+            if idx is not None and count > 0:
+                tf = (1.0 + math.log(count)) if self._word_sublinear else float(count)
+                val = tf * self._word_idf[idx]
+                word_vec[idx] = val
+                word_sq_sum += val * val
+        if word_sq_sum > 0.0:
+            norm = math.sqrt(word_sq_sum)
+            for idx, val in word_vec.items():
+                sparse[idx] = val / norm
+
+        char_offset = len(self._word_idf)
+        char_counts = _extract_char_ngrams(text, self._char_ngram)
+        char_sq_sum = 0.0
+        char_vec: dict[int, float] = {}
+        for term, count in char_counts.items():
+            idx = self._char_vocab.get(term)
+            if idx is not None and count > 0:
+                tf = (1.0 + math.log(count)) if self._char_sublinear else float(count)
+                val = tf * self._char_idf[idx]
+                char_vec[char_offset + idx] = val
+                char_sq_sum += val * val
+        if char_sq_sum > 0.0:
+            norm = math.sqrt(char_sq_sum)
+            for idx, val in char_vec.items():
+                sparse[idx] = val / norm
+        return sparse
+
+    def predict_proba(self, features: Iterable[str]) -> list[list[float]]:
+        results: list[list[float]] = []
+        for text in features:
+            vec = self._vectorize_one(str(text))
+            logits: list[float] = []
+            for row, intercept in zip(self._coef, self._intercept):
+                score = intercept
+                for idx, val in vec.items():
+                    score += row[idx] * val
+                logits.append(score)
+            if len(self.classes_) == 2:
+                z = logits[0]
+                p1 = 1.0 / (1.0 + math.exp(-max(-500.0, min(500.0, z))))
+                results.append([1.0 - p1, p1])
+            else:
+                max_z = max(logits)
+                exps = [math.exp(z - max_z) for z in logits]
+                total = sum(exps) or 1.0
+                results.append([val / total for val in exps])
+        return results
+
+    def predict(self, features: Iterable[str]) -> list[str]:
+        probs = self.predict_proba(features)
+        return [self.classes_[max(range(len(row)), key=row.__getitem__)] for row in probs]
+
+
+def save_declarative_model(pipeline: Any, path: str | Path, *, context_level: str = "local", kind: str = "logistic_regression") -> dict[str, Any]:
+    """Serialize a fitted scikit-learn TF-IDF + linear pipeline to a declarative JSON file."""
+    target = Path(path)
+    tfidf_union = pipeline.named_steps["tfidf"]
+    transformers = dict(tfidf_union.transformer_list)
+    word_vec = transformers["word"]
+    char_vec = transformers["char"]
+    clf = pipeline.named_steps["classifier"]
+    if hasattr(clf, "coef_") and hasattr(clf, "intercept_"):
+        coef = [[float(x) for x in row] for row in clf.coef_.tolist()]
+        intercept = [float(x) for x in clf.intercept_.tolist()]
+        classes = [str(c) for c in clf.classes_.tolist()]
+    elif hasattr(clf, "calibrated_classifiers_") and clf.calibrated_classifiers_:
+        # Average linear parameters across calibrated folds for declarative export
+        classes = [str(c) for c in clf.classes_.tolist()]
+        first_est = clf.calibrated_classifiers_[0].estimator
+        n_rows, n_cols = first_est.coef_.shape
+        coef = [[0.0] * n_cols for _ in range(n_rows)]
+        intercept = [0.0] * len(first_est.intercept_)
+        count = len(clf.calibrated_classifiers_)
+        for cal in clf.calibrated_classifiers_:
+            est_coef = cal.estimator.coef_.tolist()
+            est_int = cal.estimator.intercept_.tolist()
+            for r in range(n_rows):
+                intercept[r] += float(est_int[r]) / count
+                for c in range(n_cols):
+                    coef[r][c] += float(est_coef[r][c]) / count
+    else:
+        raise ValueError(f"Unsupported classifier for declarative serialization: {type(clf).__name__}")
+
+    payload = {
+        "schema": DECLARATIVE_MODEL_SCHEMA,
+        "model_type": kind,
+        "context_level": context_level,
+        "classes": classes,
+        "word_tfidf": {
+            "ngram_range": list(word_vec.ngram_range),
+            "sublinear_tf": bool(word_vec.sublinear_tf),
+            "vocabulary": {str(k): int(v) for k, v in word_vec.vocabulary_.items()},
+            "idf": [float(x) for x in word_vec.idf_.tolist()],
+        },
+        "char_tfidf": {
+            "ngram_range": list(char_vec.ngram_range),
+            "sublinear_tf": bool(char_vec.sublinear_tf),
+            "vocabulary": {str(k): int(v) for k, v in char_vec.vocabulary_.items()},
+            "idf": [float(x) for x in char_vec.idf_.tolist()],
+        },
+        "classifier": {
+            "coef": coef,
+            "intercept": intercept,
+        },
+    }
+    target.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
+    return payload
+
+
+def load_declarative_model(
+    model_path: str | Path,
+    metadata_path: str | Path | None = None,
+    *,
+    allowed_root: str | Path | None = ALLOWED_MODEL_ROOT,
+    expected_sha256: str | None = None,
+) -> DeclarativeLinearModel:
+    """Safely validate and load a declarative JSON revision intent model without pickle/joblib."""
+    resolved_model = Path(model_path).expanduser().resolve()
+    if resolved_model.suffix == ".joblib":
+        raise ValueError("Refusing to load executable .joblib/pickle model artifact; use declarative .model.json format")
+    if allowed_root is not None:
+        root_resolved = Path(allowed_root).expanduser().resolve()
+        try:
+            resolved_model.relative_to(root_resolved)
+        except ValueError as exc:
+            raise ValueError(f"Model artifact path {resolved_model} is outside the trusted model directory") from exc
+    if not resolved_model.is_file():
+        raise FileNotFoundError(f"Model artifact not found: {resolved_model}")
+    if metadata_path is None:
+        stem = resolved_model.name[:-11] if resolved_model.name.endswith(".model.json") else resolved_model.stem
+        resolved_meta = resolved_model.with_name(f"{stem}.metadata.json")
+    else:
+        resolved_meta = Path(metadata_path).expanduser().resolve()
+        if allowed_root is not None:
+            try:
+                resolved_meta.relative_to(Path(allowed_root).expanduser().resolve())
+            except ValueError as exc:
+                raise ValueError("Model metadata path is outside the trusted model directory") from exc
+    if not resolved_meta.is_file():
+        raise FileNotFoundError(f"Model metadata manifest not found: {resolved_meta}")
+    try:
+        metadata = json.loads(resolved_meta.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError("Model metadata manifest is not valid JSON") from exc
+    if not isinstance(metadata, dict) or metadata.get("schema") not in {
+        METADATA_SCHEMA,
+        "ateval-revision-classifier-metadata-v1",
+    }:
+        raise ValueError("Invalid model metadata schema")
+    if metadata.get("weight_file") != resolved_model.name:
+        raise ValueError("Model metadata weight_file does not match artifact filename")
+    label_order = metadata.get("label_order")
+    if not isinstance(label_order, list) or not label_order:
+        raise ValueError("Model metadata is missing valid label_order")
+
+    raw_bytes = resolved_model.read_bytes()
+    actual_digest = hashlib.sha256(raw_bytes).hexdigest()
+    meta_digest = metadata.get("sha256")
+    if not isinstance(meta_digest, str) or len(meta_digest) != 64 or actual_digest != meta_digest:
+        raise ValueError("Intent model SHA-256 digest does not match its metadata manifest")
+    pinned = expected_sha256 or PINNED_MODEL_DIGESTS.get(resolved_model.name)
+    if pinned and actual_digest != pinned:
+        raise ValueError("Intent model SHA-256 digest does not match the build-pinned digest")
+
+    try:
+        payload = json.loads(raw_bytes.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("Declarative model artifact is not valid UTF-8 JSON") from exc
+    model = DeclarativeLinearModel(payload)
+    if sorted(model.classes_) != sorted(str(item) for item in label_order):
+        raise ValueError("Declarative model classes do not match metadata label_order")
+    return model

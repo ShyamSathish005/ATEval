@@ -11,7 +11,7 @@ export default defineConfig({
   },
   server: {
     host: "127.0.0.1",
-    allowedHosts: ["terminal.local", "localhost"],
+    allowedHosts: ["localhost", "127.0.0.1"],
     proxy: {
       "/api": {
         target: process.env.ATEVAL_API_ORIGIN ?? "http://127.0.0.1:8000",

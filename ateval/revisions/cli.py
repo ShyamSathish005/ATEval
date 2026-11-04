@@ -260,17 +260,13 @@ def run_revisions(args: argparse.Namespace) -> int:
     if args.revisions_command == "predict-trained-intent":
         import platform
         from types import SimpleNamespace
-        import joblib
-        from .classic_models import context_text
+        from .classic_models import ALLOWED_MODEL_ROOT, context_text, load_declarative_model
         model_dir = Path(__file__).resolve().parents[2] / "models" / "revisions" / "iterater_human_grouped_v1"
-        model_path = model_dir / "local-logistic_regression.joblib"
+        model_path = model_dir / "local-logistic_regression.model.json"
         metadata_path = model_dir / "local-logistic_regression.metadata.json"
         if not model_path.is_file() or not metadata_path.is_file():
             raise ValueError("The trained IteraTeR-HUMAN model is unavailable; run benchmark-intent first")
-        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-        if hashlib.sha256(model_path.read_bytes()).hexdigest() != metadata.get("sha256"):
-            raise ValueError("Intent model checksum does not match its metadata")
-        model = joblib.load(model_path)
+        model = load_declarative_model(model_path, metadata_path, allowed_root=ALLOWED_MODEL_ROOT)
         record = SimpleNamespace(section_type=args.section_type, context_before=args.context_before, context_after=args.context_after, original_text=args.sentence, metadata={})
         scores = model.predict_proba([context_text(record, "local")])[0]
         classes = list(map(str, model.classes_))
