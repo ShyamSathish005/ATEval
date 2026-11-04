@@ -40,7 +40,7 @@ The design priorities are:
 | Start | Humanizer | Research | Project |
 |---|---|---|---|
 | [Installation](docs/installation.md) · [Quick start](docs/quick_start.md) | [MVP scope](docs/MVP_SCOPE.md) · [User guide](docs/USER_GUIDE.md) | [Research](docs/RESEARCH.md) · [Evaluation](docs/EVALUATION.md) | [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) |
-| [Troubleshooting](docs/troubleshooting.md) · [OS notes](docs/os_installation.md) | [Privacy](docs/PRIVACY_AND_DATA_HANDLING.md) · [Data handling](docs/DATASETS_AND_LICENSING.md) | [Model setup](docs/MODEL_SETUP.md) · [Limitations](docs/ALPHA_LIMITATIONS.md) | [Roadmap](docs/ROADMAP.md) · [Changelog](CHANGELOG.md) |
+| [Troubleshooting](docs/troubleshooting.md) · [OS notes](docs/os_installation.md) | [Privacy](docs/PRIVACY_AND_DATA_HANDLING.md) · [Data handling](docs/DATASETS_AND_LICENSING.md) | [Model setup](docs/MODEL_SETUP.md) · [Limitations](docs/ALPHA_LIMITATIONS.md) | [Roadmap](docs/ROADMAP.md) · [Project status](docs/PROJECT_STATUS.md) · [Changelog](CHANGELOG.md) |
 
 ## Capability matrix
 

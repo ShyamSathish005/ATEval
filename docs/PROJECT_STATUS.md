@@ -58,11 +58,15 @@ The only configuration that has been tested end-to-end with the local model is:
 
 ## Security Review Status
 - Independent M6.4 security review completed; the ZIP traversal finding was fixed and regression-tested
-- SSRF protection: Ollama URL validated as loopback (`_loopback_ollama_url` in api.py); `compose.yaml` publishes `127.0.0.1:8000` only
-- Host-header and DNS-rebinding protection: Host header validated against `API_HOSTS` set (`127.0.0.1`, `localhost`, `terminal.local`)
-- Local API request protection: `MaxRequestBodyMiddleware` rejects oversized bodies; rate limiting on public demo mode
-- Docker host-port publishing — loopback-only by default; `compose.yaml` publishes `127.0.0.1:${ATEVAL_PORT:-8000}:8000`
-- Public API exposed only in development mode; `PUBLIC_DEMO_MODE` env var controls opt-in with rate limiting
+- M6.6 security, reliability, and concurrency remediation completed (`docs/M6_6_SECURITY_REMEDIATION.md`, `docs/M6_6_PERFORMANCE_AND_CONCURRENCY.md`):
+  - Trusted-proxy hop extraction (`ATEVAL_TRUSTED_PROXIES`, `ATEVAL_TRUSTED_PROXY_HOPS`) and bounded LRU rate-limit table (`ATEVAL_PUBLIC_RATE_LIMIT_MAX_BUCKETS`)
+  - Bounded streaming decompression for both LaTeX ZIP projects and DOCX archives (`_read_bounded_zip`, `validate_docx_archive`)
+  - RFC 6266 / RFC 5987 attachment filename sanitization, `X-Content-Type-Options: nosniff`, and sandboxed Content-Security-Policy on exports
+  - Declarative JSON revision intent model format (`ateval-declarative-linear-model-v1`) replacing `joblib.load()` / `pickle`
+  - Host-header and DNS-rebinding protection: Host header validated strictly against `API_HOSTS` (`127.0.0.1`, `localhost`, `::1`; `terminal.local` removed), plus cross-site mutation (`Sec-Fetch-Site`, `Referer`, simple form content-type) and per-launch token (`X-ATEval-Token`) checks
+- SSRF protection: Ollama URL validated as loopback (`_loopback_ollama_url` in api.py); `compose.yaml` publishes `127.0.0.1:${ATEVAL_PORT:-8000}:${PORT:-8000}` only
+- Local API request protection: `MaxRequestBodyMiddleware` rejects oversized bodies; SQLite uses WAL mode with bounded `busy_timeout` and threadpool offloading for CPU-bound async routes
+- Public API exposed only in synthetic demo mode; `PUBLIC_DEMO_MODE` env var controls opt-in with rate limiting; automated tests do not substitute for an external penetration test
 
 ## Human Evaluation Status
 - Human evaluation protocol established
