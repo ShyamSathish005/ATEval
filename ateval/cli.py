@@ -23,6 +23,24 @@ LOG = logging.getLogger("ateval")
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 
+def validate_port(value: str | int) -> int:
+    """Validate that an API TCP port is an integer in the range 1..65535."""
+    try:
+        raw = str(value).strip()
+        if not raw or isinstance(value, bool):
+            raise ValueError("empty port")
+        port = int(raw)
+    except (TypeError, ValueError) as exc:
+        raise argparse.ArgumentTypeError(
+            f"Invalid TCP port {value!r}: must be an integer between 1 and 65535"
+        ) from exc
+    if not (1 <= port <= 65535):
+        raise argparse.ArgumentTypeError(
+            f"Invalid TCP port {port}: must be between 1 and 65535"
+        )
+    return port
+
+
 def _doctor_report(config) -> dict:
     """Inspect local runtime components without contacting external services."""
     package_names = {
@@ -72,7 +90,11 @@ def _doctor_report(config) -> dict:
 
     api_dependencies = all(packages[name]["importable"] for name in ("fastapi", "uvicorn", "python-multipart"))
     try:
-        with urllib.request.urlopen("http://127.0.0.1:8000/api/v1/health", timeout=0.4) as response:
+        doctor_port = validate_port(os.environ.get("PORT", "8000"))
+    except argparse.ArgumentTypeError:
+        doctor_port = 8000
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{doctor_port}/api/v1/health", timeout=0.4) as response:
             api_running = response.status == 200
     except (OSError, urllib.error.URLError):
         api_running = False
@@ -83,7 +105,7 @@ def _doctor_report(config) -> dict:
     return {
         "python": {"version": sys.version.split()[0], "supported": sys.version_info >= (3, 11)},
         "packages": packages,
-        "backend": {"dependencies_available": api_dependencies, "local_api_running": api_running},
+        "backend": {"dependencies_available": api_dependencies, "local_api_running": api_running, "port": doctor_port},
         "frontend": {"build_available": (PROJECT_ROOT / "frontend" / "dist" / "client" / "index.html").is_file()},
         "ollama": ollama_status,
         "latex": {"latexmk": shutil.which("latexmk"), "pdflatex": shutil.which("pdflatex")},
@@ -101,7 +123,7 @@ def _parser() -> argparse.ArgumentParser:
     sub.add_parser("doctor", help="Check runtime and optional components")
     api = sub.add_parser("api", help="Run the local ATEval API")
     api.add_argument("--host", default="127.0.0.1", choices=("127.0.0.1", "localhost", "0.0.0.0"), help="Bind host; 0.0.0.0 is for explicitly configured container/proxy deployments only")
-    api.add_argument("--port", type=int, default=int(os.environ.get("PORT", "8000")), help="API port; defaults to PORT or 8000")
+    api.add_argument("--port", type=validate_port, default=None, help="API port (1-65535); defaults to PORT or 8000")
     papers = sub.add_parser("papers", help="Inspect the research registry")
     papers.add_subparsers(dest="papers_command", required=True).add_parser("audit", help="Check registered paper identifiers and source links")
     detector = sub.add_parser("detector", help="Inspect detector implementations")
@@ -147,11 +169,17 @@ def main(argv: list[str] | None = None) -> int:
         LOG.info("doctor checks completed")
         return 0 if sys.version_info >= (3, 11) else 2
     elif args.command == "api":
+        port = args.port
+        if port is None:
+            try:
+                port = validate_port(os.environ.get("PORT", "8000"))
+            except argparse.ArgumentTypeError as exc:
+                parser.error(str(exc))
         try:
             import uvicorn
         except ImportError as exc:
             parser.error("Install the UI API dependencies with: python -m pip install -e '.[ui-server]'")
-        uvicorn.run("ateval.api:app", host=args.host, port=args.port, log_level=config.log_level.lower())
+        uvicorn.run("ateval.api:app", host=args.host, port=port, log_level=config.log_level.lower())
     elif args.command == "detector" and args.detector_command == "list":
         print(json.dumps([spec.__dict__ for spec in DETECTORS], indent=2))
     elif args.command == "detector" and args.detector_command == "evaluate":
