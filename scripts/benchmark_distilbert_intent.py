@@ -144,7 +144,6 @@ def run(args: argparse.Namespace) -> dict:
     if output.exists():
         raise FileExistsError(f"Refusing to overwrite transformer experiment: {output}")
     output.mkdir(parents=True)
-    import joblib
     from ateval import __version__
     from ateval.revisions import classic_models, datasets, schema, taxonomy
     source_files = [Path(__file__), Path(classic_models.__file__), Path(datasets.__file__), Path(schema.__file__), Path(taxonomy.__file__)]
@@ -152,8 +151,21 @@ def run(args: argparse.Namespace) -> dict:
     manifest_hashes = {str(path): _digest(path) for path in Path("data/manifests").glob("revision_*_manifest.json")}
     encoder_files = {path.name: _digest(path) for path in snapshot_path.iterdir() if path.is_file() and path.name in {"config.json", "model.safetensors", "tokenizer.json", "tokenizer_config.json", "vocab.txt", "special_tokens_map.json"}}
     for context_level, classifier in fitted.items():
-        weights = output / f"{context_level}-logistic-head.joblib"
-        joblib.dump(classifier, weights)
+        weights = output / f"{context_level}-logistic-head.model.json"
+        weights.write_text(
+            json.dumps(
+                {
+                    "schema": "ateval-contextual-logistic-head-v1",
+                    "context_level": context_level,
+                    "classes": [str(c) for c in classifier.classes_.tolist()],
+                    "coef": [[float(x) for x in row] for row in classifier.coef_.tolist()],
+                    "intercept": [float(x) for x in classifier.intercept_.tolist()],
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
         report.setdefault("artifacts", {})[weights.name] = _digest(weights)
         (output / f"{context_level}-metadata.json").write_text(json.dumps({
             "schema": "ateval-contextual-transformer-metadata-v1", "context_level": context_level,
