@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Manager, RunEvent};
+use tauri::{AppHandle, RunEvent};
 use tauri_plugin_shell::process::{CommandChild, CommandEvent};
 use tauri_plugin_shell::ShellExt;
 
@@ -134,6 +134,7 @@ async fn spawn_and_handshake_sidecar(
                     None => {
                         return Err("Sidecar stream closed unexpectedly without readiness event".to_string());
                     }
+                    _ => {}
                 }
             }
         }
