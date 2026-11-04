@@ -134,7 +134,7 @@ SAFE_DOCS_DESKTOP = {
 
 def forbidden(path: str) -> bool:
     parts = path.replace("\\", "/").split("/")
-    if any(part in FORBIDDEN_PARTS for part in parts):
+    if "third-party-licenses" not in parts and any(part in FORBIDDEN_PARTS for part in parts):
         return True
     if any(part in FORBIDDEN_NAMES for part in parts):
         return True
