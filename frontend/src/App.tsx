@@ -48,6 +48,27 @@ import {
 } from "./services/api";
 
 type Theme = "light" | "dark" | "system";
+
+function resolveCodePointOffsets(
+  paragraphContext: string,
+  targetSentence: string,
+  preferredOccurrence = 0,
+): { target_start: number; target_end: number } | null {
+  const matches: number[] = [];
+  let searchPos = 0;
+  while (targetSentence.length > 0) {
+    const idx = paragraphContext.indexOf(targetSentence, searchPos);
+    if (idx < 0) break;
+    matches.push(idx);
+    searchPos = idx + 1;
+  }
+  if (!matches.length) return null;
+  const utf16Start = matches[Math.min(preferredOccurrence, matches.length - 1)];
+  const utf16End = utf16Start + targetSentence.length;
+  const target_start = Array.from(paragraphContext.slice(0, utf16Start)).length;
+  const target_end = Array.from(paragraphContext.slice(0, utf16End)).length;
+  return { target_start, target_end };
+}
 type PageId = "overview" | "experiments" | "datasets" | "detectors" | "results" | "manuscript" | "latex" | "quality" | "review" | "reports" | "settings";
 type NavItem = { id: PageId; label: string; icon: ComponentType<{ width?: number; height?: number; className?: string }> };
 
@@ -688,9 +709,27 @@ function ManuscriptPage({ system }: { system: SystemStatus | null }) {
       completed += 1;
       setProgress(`Creating review proposals · ${completed} of ${writableTargets.length} · ${passage.section}`);
       try {
+        const contextText = passage.context || passage.text;
+        const priorIdenticalInContext = report.passages.filter(
+          (candidate) =>
+            candidate.context === passage.context &&
+            candidate.text === passage.text &&
+            candidate.projection_start < passage.projection_start,
+        ).length;
+        const cpOffsets = resolveCodePointOffsets(contextText, passage.text, priorIdenticalInContext);
         const result = await api<NeuralRevision>("/writing/revise", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sentence: passage.text, paragraph_context: passage.context, section_type: passage.section, intention, author_requested_edit: true, protected_terminology: terms }),
+          body: JSON.stringify({
+            sentence: passage.text,
+            paragraph_context: contextText,
+            paragraph_id: passage.segment_id,
+            target_start: cpOffsets?.target_start,
+            target_end: cpOffsets?.target_end,
+            section_type: passage.section,
+            intention,
+            author_requested_edit: true,
+            protected_terminology: terms,
+          }),
         });
         const next: ManuscriptEditProposal = {
           id: `scar-${passage.segment_id}`, passage, original: passage.text, candidate: result.proposed_text ?? result.candidate_text,
@@ -801,7 +840,7 @@ function ManuscriptPage({ system }: { system: SystemStatus | null }) {
     const unsupported = report.coverage.unsupported_elements.map((item) => `<li>${htmlEscape(item.path ?? "source")} · ${htmlEscape(item.kind ?? "unsupported element")} · ${htmlEscape(item.detail ?? "")}</li>`).join("");
     const profile = report.descriptive_writing_profile;
     const configuration = htmlEscape(JSON.stringify(report.processing_configuration, null, 2));
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>ATEval manuscript report · ${htmlEscape(report.document.name)}</title><style>body{font:14px/1.6 Arial,sans-serif;max-width:1050px;margin:40px auto;padding:0 24px;color:#18263a}h1,h2{color:#172f58}.warning{padding:16px;background:#fff4df;border:1px solid #ead2a6;border-radius:10px}table{border-collapse:collapse;width:100%;font-size:12px}td,th{padding:9px;border-bottom:1px solid #ddd;text-align:left;vertical-align:top}article{border-bottom:1px solid #ddd;padding:12px 0;page-break-inside:avoid}small{color:#667085}pre{padding:12px;background:#f4f6f8;white-space:pre-wrap}section{page-break-inside:avoid}@media print{body{max-width:none;margin:0 auto;font-size:11px}table{font-size:9px}}</style></head><body><h1>Manuscript Intelligence report</h1><p>${htmlEscape(report.document.name)} · ${htmlEscape(report.generated_at)} · ID ${htmlEscape(report.document.document_id)}</p><div class="warning">${htmlEscape(report.detector_summary.warning)}</div><h2>Summary and coverage</h2><p>${report.document.words_in_prose_projection.toLocaleString()} words · ${report.document.sentence_count} passages · ${report.document.section_count} sections · ${report.coverage.source_mapped_passage_count} source-mapped passages · ${report.coverage.editable_passage_count} editable passages · AI-signal coverage ${report.coverage.ai_signal_prose_coverage}% · ${report.coverage.unsupported_element_count} excluded or unsupported elements.</p><p>Format ${htmlEscape(report.document.format)} · ${htmlEscape(report.document.extraction)} · source SHA-256 ${htmlEscape(report.document.source_sha256)}</p><h3>Sections</h3><ul>${sections}</ul><h2>Descriptive writing profile (not an authorship detector)</h2><p>${profile.counts.words} words · ${profile.counts.sentences} sentences · mean sentence length ${profile.sentence.mean_words ?? "not available"} · length-sensitive TTR ${profile.lexical.type_token_ratio_length_sensitive ?? "not available"} · MTLD ${profile.lexical.mtld_threshold_0_72 ?? "not available"}.</p><h2>Independent method-specific results</h2><p>${htmlEscape(report.detector_summary.interpretation)}</p><table><thead><tr><th>Detector</th><th>Version</th><th>Model revision</th><th>Tokenizer revision</th><th>Status</th><th>Passages analyzed</th><th>Relevant signals</th><th>Raw score / direction</th><th>Calibration</th><th>Uncertainty</th><th>Methodology</th></tr></thead><tbody>${methods}</tbody></table><h2>Unsupported or excluded content</h2><ul>${unsupported || "<li>None reported.</li>"}</ul><h2>Passage-level status</h2>${passages}<h2>Processing configuration</h2><pre>${configuration}</pre><h2>Limitations</h2><ul>${report.limitations.map((limit) => `<li>${htmlEscape(limit)}</li>`).join("")}</ul></body></html>`;
+    const html = `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:; form-action 'none'; base-uri 'none'"><title>ATEval manuscript report · ${htmlEscape(report.document.name)}</title><style>body{font:14px/1.6 Arial,sans-serif;max-width:1050px;margin:40px auto;padding:0 24px;color:#18263a}h1,h2{color:#172f58}.warning{padding:16px;background:#fff4df;border:1px solid #ead2a6;border-radius:10px}table{border-collapse:collapse;width:100%;font-size:12px}td,th{padding:9px;border-bottom:1px solid #ddd;text-align:left;vertical-align:top}article{border-bottom:1px solid #ddd;padding:12px 0;page-break-inside:avoid}small{color:#667085}pre{padding:12px;background:#f4f6f8;white-space:pre-wrap}section{page-break-inside:avoid}@media print{body{max-width:none;margin:0 auto;font-size:11px}table{font-size:9px}}</style></head><body><h1>Manuscript Intelligence report</h1><p>${htmlEscape(report.document.name)} · ${htmlEscape(report.generated_at)} · ID ${htmlEscape(report.document.document_id)}</p><div class="warning">${htmlEscape(report.detector_summary.warning)}</div><h2>Summary and coverage</h2><p>${report.document.words_in_prose_projection.toLocaleString()} words · ${report.document.sentence_count} passages · ${report.document.section_count} sections · ${report.coverage.source_mapped_passage_count} source-mapped passages · ${report.coverage.editable_passage_count} editable passages · AI-signal coverage ${report.coverage.ai_signal_prose_coverage}% · ${report.coverage.unsupported_element_count} excluded or unsupported elements.</p><p>Format ${htmlEscape(report.document.format)} · ${htmlEscape(report.document.extraction)} · source SHA-256 ${htmlEscape(report.document.source_sha256)}</p><h3>Sections</h3><ul>${sections}</ul><h2>Descriptive writing profile (not an authorship detector)</h2><p>${profile.counts.words} words · ${profile.counts.sentences} sentences · mean sentence length ${profile.sentence.mean_words ?? "not available"} · length-sensitive TTR ${profile.lexical.type_token_ratio_length_sensitive ?? "not available"} · MTLD ${profile.lexical.mtld_threshold_0_72 ?? "not available"}.</p><h2>Independent method-specific results</h2><p>${htmlEscape(report.detector_summary.interpretation)}</p><table><thead><tr><th>Detector</th><th>Version</th><th>Model revision</th><th>Tokenizer revision</th><th>Status</th><th>Passages analyzed</th><th>Relevant signals</th><th>Raw score / direction</th><th>Calibration</th><th>Uncertainty</th><th>Methodology</th></tr></thead><tbody>${methods}</tbody></table><h2>Unsupported or excluded content</h2><ul>${unsupported || "<li>None reported.</li>"}</ul><h2>Passage-level status</h2>${passages}<h2>Processing configuration</h2><pre>${configuration}</pre><h2>Limitations</h2><ul>${report.limitations.map((limit) => `<li>${htmlEscape(limit)}</li>`).join("")}</ul></body></html>`;
     return html;
   };
   const exportHtmlReport = () => {
@@ -811,12 +850,7 @@ function ManuscriptPage({ system }: { system: SystemStatus | null }) {
     const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `${file?.name.replace(/\.[^.]+$/, "") ?? "manuscript"}-analysis.html`; link.click(); URL.revokeObjectURL(link.href);
   };
   const printReport = () => {
-    const html = buildReportHtml();
-    if (!html) return;
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) { setError("The report print window was blocked. Download the HTML report and print it from your browser."); return; }
-    printWindow.document.open(); printWindow.document.write(html); printWindow.document.close();
-    printWindow.onload = () => printWindow.print();
+    exportHtmlReport();
   };
   const sourceLocation = (passage: ManuscriptPassage) => {
     const locator = passage.source_map;
@@ -912,11 +946,23 @@ function QualityPage({ system, onAuditSaved }: { system: SystemStatus | null; on
     if (!sentence) return;
     const nextSentence = (paragraph.slice(sentence.length).match(/[^.!?]+[.!?]+|[^.!?]+$/g) ?? []).slice(0, 2).join(" ").trim();
     const sourceStart = text.indexOf(sentence);
+    const cpOffsets = resolveCodePointOffsets(paragraph, sentence, 0);
     setBusy(true); setMessage(""); setNeuralRevision(null);
     try {
     const result = await api<NeuralRevision>("/writing/revise", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sentence, paragraph_context: paragraph, next_sentence: nextSentence, section_type: "unknown", intention: revisionIntention, author_requested_edit: revisionIntention !== "no_edit", instruction: "Make the smallest useful change and preserve scientific meaning." }),
+        body: JSON.stringify({
+          sentence,
+          paragraph_context: paragraph,
+          paragraph_id: "paragraph-0",
+          target_start: cpOffsets?.target_start,
+          target_end: cpOffsets?.target_end,
+          next_sentence: nextSentence,
+          section_type: "unknown",
+          intention: revisionIntention,
+          author_requested_edit: revisionIntention !== "no_edit",
+          instruction: "Make the smallest useful change and preserve scientific meaning.",
+        }),
       });
       setNeuralRevision({ ...result, sourceStart, authorDecision: "pending" });
       setMessage(result.review_decision === "NO_CHANGE" ? "SCAR recommends no change. The source remains untouched." : result.review_decision === "REQUIRES_EXPERT_REVIEW" ? "SCAR abstained; more context or subject-expert review is required." : "SCAR produced a reviewable candidate. Automated checks do not prove meaning preservation.");

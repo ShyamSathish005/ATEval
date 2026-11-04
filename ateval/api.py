@@ -9,19 +9,22 @@ from __future__ import annotations
 
 import csv
 import hashlib
+import hmac
 import importlib.util
+import ipaddress
 import itertools
 import io
 import json
 import os
 import platform
+import secrets
 import shutil
 import sqlite3
 import sys
 import threading
 import unicodedata
 import uuid
-from collections import Counter
+from collections import Counter, OrderedDict
 from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -31,6 +34,7 @@ from urllib.parse import urlsplit
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
+from starlette.concurrency import run_in_threadpool
 from starlette.types import ASGIApp, Receive, Scope, Send
 from pydantic import BaseModel, Field
 
@@ -39,12 +43,17 @@ from .registry import DETECTORS
 from .detectors import evaluate_stylometric_baseline
 from .schema import ALLOWED_LABELS, REQUIRED_FIELDS, DatasetRecord
 from .writing import analyze_text, apply_accepted_suggestions, extract_document, validate_preservation
-from .revisions.classic_models import context_text
+from .revisions.classic_models import ALLOWED_MODEL_ROOT, context_text, load_declarative_model
 from .revisions.academic_generation import XtraGPTOllamaGenerator
 from .revisions.scar import SCARRevisionEngine, compare_claim_cues, revision_necessity_gate
 from .revisions.protected_content import protect_content
 from .manuscript_analysis import analyze_manuscript, import_manuscript
-from .manuscript_analysis.exports import export_reviewed_manuscript
+from .manuscript_analysis.exports import (
+    build_content_disposition,
+    export_html_report,
+    export_reviewed_manuscript,
+    sanitize_export_filename,
+)
 from .revisions.human_evaluation import (
     ANNOTATIONS_PATH,
     PACKET_PATH,
@@ -60,29 +69,146 @@ APP_HOME = Path(os.environ.get("ATEVAL_HOME", PROJECT_ROOT / ".ateval")).expandu
 RAW_DATA_DIR = APP_HOME / "datasets" / "raw"
 DB_PATH = APP_HOME / "ateval.sqlite3"
 MAX_UPLOAD_BYTES = max(1, int(os.environ.get("ATEVAL_UPLOAD_LIMIT_BYTES", str(25 * 1024 * 1024))))
-API_HOSTS = {"127.0.0.1", "localhost", "terminal.local"}
+API_HOSTS = {"127.0.0.1", "localhost", "::1"}
 _configured_hosts = os.environ.get("ATEVAL_ALLOWED_HOSTS", "")
 API_HOSTS.update(host.strip().lower() for host in _configured_hosts.split(",") if host.strip())
 PUBLIC_DEMO_MODE = os.environ.get("ATEVAL_PUBLIC_DEMO", "0").lower() in {"1", "true", "yes"}
 PUBLIC_DEMO_REQUESTS_PER_MINUTE = max(1, int(os.environ.get("ATEVAL_PUBLIC_RATE_LIMIT_PER_MINUTE", "20")))
-_public_rate_counts: dict[tuple[str, int], int] = {}
+PUBLIC_RATE_LIMIT_MAX_BUCKETS = max(16, int(os.environ.get("ATEVAL_PUBLIC_RATE_LIMIT_MAX_BUCKETS", "4096")))
+_public_rate_counts: OrderedDict[tuple[str, int], int] = OrderedDict()
 _public_rate_lock = threading.Lock()
+DEFAULT_TRUSTED_PROXY_CIDRS = ("127.0.0.1/32", "::1/128", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16")
+_raw_trusted_proxies = os.environ.get("ATEVAL_TRUSTED_PROXIES", "")
+TRUSTED_PROXY_NETWORKS = tuple(
+    ipaddress.ip_network(cidr.strip(), strict=False)
+    for cidr in (_raw_trusted_proxies.split(",") if _raw_trusted_proxies.strip() else DEFAULT_TRUSTED_PROXY_CIDRS)
+    if cidr.strip()
+)
+TRUSTED_PROXY_HOPS = max(
+    0,
+    int(
+        os.environ.get(
+            "ATEVAL_TRUSTED_PROXY_HOPS",
+            "1" if (os.environ.get("RENDER", "").lower() == "true" or _raw_trusted_proxies.strip()) else "0",
+        )
+    ),
+)
+LAUNCH_TOKEN = os.environ.get("ATEVAL_LAUNCH_TOKEN") or secrets.token_urlsafe(32)
+REQUIRE_ORIGIN_FOR_MUTATIONS = os.environ.get("ATEVAL_REQUIRE_ORIGIN_FOR_MUTATIONS", "0").lower() in {"1", "true", "yes"}
+REQUIRE_LAUNCH_TOKEN = os.environ.get("ATEVAL_REQUIRE_LAUNCH_TOKEN", "0").lower() in {"1", "true", "yes"}
+RESEARCH_EXPERIMENTS_ENABLED = os.environ.get("ATEVAL_ENABLE_RESEARCH_EXPERIMENTS", "0").lower() in {"1", "true", "yes"}
+SQLITE_BUSY_TIMEOUT_MS = max(1000, int(os.environ.get("ATEVAL_SQLITE_BUSY_TIMEOUT_MS", "15000")))
 DEFAULT_CORS_ORIGINS = {
     "http://localhost:5173", "http://127.0.0.1:5173",
     "http://localhost:5174", "http://127.0.0.1:5174",
     "http://localhost:4173", "http://127.0.0.1:4173",
+    "tauri://localhost", "http://tauri.localhost", "https://tauri.localhost",
 }
 _cors_origins_from_env = os.environ.get("ATEVAL_CORS_ORIGINS")
 ALLOWED_CORS_ORIGINS = tuple(
-    origin.strip().rstrip("/")
+    origin.strip().rstrip("/").lower()
     for origin in (_cors_origins_from_env.split(",") if _cors_origins_from_env else DEFAULT_CORS_ORIGINS)
     if origin.strip() and origin.strip().lower() not in {"null", "*"}
 )
+
+
+def _normalize_host_header(raw_host: str) -> str | None:
+    value = raw_host.strip().lower()
+    if not value:
+        return ""
+    if any(ch.isspace() or ch in "/\\?#@," for ch in value):
+        return None
+    if value.startswith("["):
+        end = value.find("]")
+        if end < 0:
+            return None
+        host = value[1:end]
+        rest = value[end + 1:]
+        if rest:
+            if not rest.startswith(":") or not rest[1:].isdigit():
+                return None
+            port = int(rest[1:])
+            if not (1 <= port <= 65535):
+                return None
+        return host
+    if ":" in value:
+        host, port_str = value.rsplit(":", 1)
+        if not port_str.isdigit():
+            return None
+        port = int(port_str)
+        if not (1 <= port <= 65535):
+            return None
+        return host
+    return value
+
+
+def _is_trusted_proxy_peer(peer_host: str | None) -> bool:
+    if not peer_host:
+        return False
+    if peer_host == "testclient":
+        return True
+    try:
+        addr = ipaddress.ip_address(peer_host)
+    except ValueError:
+        return False
+    return any(addr in network for network in TRUSTED_PROXY_NETWORKS)
+
+
+def _resolve_client_ip(request: Request) -> str:
+    """Resolve client IP using explicit trusted-proxy hop count.
+
+    Note: In-memory rate limiting applies per worker process. Multi-worker or
+    multi-instance deployments must enforce rate limiting at the ingress proxy
+    or shared store (e.g., Redis / edge WAF) rather than relying solely on
+    process-local memory.
+    """
+    peer_host = request.client.host if request.client else "unknown"
+    effective_hops = TRUSTED_PROXY_HOPS
+    if effective_hops == 0 and os.environ.get("RENDER", "").lower() == "true":
+        effective_hops = 1
+    if effective_hops <= 0:
+        return peer_host
+    if not _is_trusted_proxy_peer(peer_host):
+        return peer_host
+    raw_xff = request.headers.get("x-forwarded-for")
+    if not raw_xff or not raw_xff.strip():
+        return peer_host
+    if len(raw_xff) > 2048:
+        raise ValueError("Malformed X-Forwarded-For header")
+    parts = [part.strip() for part in raw_xff.split(",")]
+    if any(not part for part in parts) or len(parts) > 32:
+        raise ValueError("Malformed X-Forwarded-For header")
+    parsed_ips: list[str] = []
+    for part in parts:
+        try:
+            parsed_ips.append(ipaddress.ip_address(part).compressed)
+        except ValueError as exc:
+            raise ValueError("Malformed IP address in X-Forwarded-For header") from exc
+    index = max(0, len(parsed_ips) - effective_hops)
+    return parsed_ips[index]
+
+
+def _check_public_rate_limit(client_host: str, minute: int) -> bool:
+    with _public_rate_lock:
+        for key in tuple(_public_rate_counts.keys()):
+            if key[1] < minute - 1:
+                _public_rate_counts.pop(key, None)
+            else:
+                break
+        key = (client_host, minute)
+        if key in _public_rate_counts:
+            _public_rate_counts.move_to_end(key)
+            _public_rate_counts[key] += 1
+        else:
+            while len(_public_rate_counts) >= PUBLIC_RATE_LIMIT_MAX_BUCKETS:
+                _public_rate_counts.popitem(last=False)
+            _public_rate_counts[key] = 1
+        return _public_rate_counts[key] <= PUBLIC_DEMO_REQUESTS_PER_MINUTE
 _workspace_client_build = PROJECT_ROOT / "frontend" / "dist" / "client"
 _packaged_client_build = Path(__file__).resolve().parent / "static"
 CLIENT_BUILD_DIR = _workspace_client_build if (_workspace_client_build / "index.html").is_file() else _packaged_client_build
 REVISION_MODEL_DIR = PROJECT_ROOT / "models" / "revisions" / "iterater_human_grouped_v1"
-REVISION_MODEL_PATH = REVISION_MODEL_DIR / "local-logistic_regression.joblib"
+REVISION_MODEL_PATH = REVISION_MODEL_DIR / "local-logistic_regression.model.json"
 REVISION_MODEL_METADATA = REVISION_MODEL_DIR / "local-logistic_regression.metadata.json"
 
 def _loopback_ollama_url(value: str) -> str:
@@ -117,15 +243,24 @@ def now_utc() -> str:
 
 
 def upload_basename(filename: str | None, fallback: str = "manuscript.txt") -> str:
-    """Normalize both POSIX and Windows client paths to a filename only."""
-    return (filename or fallback).replace("\\", "/").rsplit("/", 1)[-1] or fallback
+    """Normalize both POSIX and Windows client paths to a safe filename only."""
+    raw = (filename or fallback).replace("\\", "/").rsplit("/", 1)[-1]
+    cleaned = "".join(
+        ch for ch in raw
+        if ch not in {'"', "'", ";", "/", "\\", "\r", "\n", "\x00"} and unicodedata.category(ch)[0] != "C"
+    ).strip()
+    if not cleaned or cleaned in {".", ".."}:
+        return fallback
+    return cleaned
 
 
 @contextmanager
 def get_db() -> sqlite3.Connection:
     APP_HOME.mkdir(parents=True, exist_ok=True)
-    db = sqlite3.connect(DB_PATH, timeout=10)
+    timeout_sec = max(1.0, SQLITE_BUSY_TIMEOUT_MS / 1000.0)
+    db = sqlite3.connect(DB_PATH, timeout=timeout_sec)
     db.row_factory = sqlite3.Row
+    db.execute(f"PRAGMA busy_timeout = {int(SQLITE_BUSY_TIMEOUT_MS)}")
     db.execute("PRAGMA foreign_keys = ON")
     try:
         yield db
@@ -139,6 +274,8 @@ def get_db() -> sqlite3.Connection:
 
 def init_db() -> None:
     with get_db() as db:
+        db.execute("PRAGMA journal_mode = WAL")
+        db.execute("PRAGMA synchronous = NORMAL")
         db.executescript(
             """
             CREATE TABLE IF NOT EXISTS datasets (
@@ -220,8 +357,9 @@ class RequestBodyTooLarge(Exception):
 @app.middleware("http")
 async def local_origin_guard(request, call_next):
     """Reject cross-site browser writes and host-header rebinding attempts."""
-    host_header = request.headers.get("host", "").split(":", 1)[0].lower()
-    if host_header and host_header not in API_HOSTS:
+    raw_host = request.headers.get("host", "")
+    host_header = _normalize_host_header(raw_host)
+    if host_header is None or (host_header and host_header not in API_HOSTS) or (not host_header and request.url.path.startswith("/api/")):
         return await _json_error(400, "Host is not allowed")
     if PUBLIC_DEMO_MODE and request.url.path.startswith("/api/"):
         safe_reads = {
@@ -232,26 +370,44 @@ async def local_origin_guard(request, call_next):
             request.method == "POST" and request.url.path == "/api/v1/demo/sample"
         ):
             return await _json_error(403, "Public demo accepts only the synthetic sample; uploads and state changes are disabled")
-        client_host = request.client.host if request.client else "unknown"
-        if os.environ.get("RENDER", "").lower() == "true":
-            forwarded_for = request.headers.get("x-forwarded-for", "").split(",", 1)[0].strip()
-            if forwarded_for:
-                client_host = forwarded_for
+        try:
+            client_host = _resolve_client_ip(request)
+        except ValueError as exc:
+            return await _json_error(400, str(exc))
         minute = int(datetime.now(timezone.utc).timestamp() // 60)
-        with _public_rate_lock:
-            for key in tuple(_public_rate_counts):
-                if key[1] < minute - 1:
-                    _public_rate_counts.pop(key, None)
-            key = (client_host, minute)
-            _public_rate_counts[key] = _public_rate_counts.get(key, 0) + 1
-            if _public_rate_counts[key] > PUBLIC_DEMO_REQUESTS_PER_MINUTE:
-                return await _json_error(429, "Public demo rate limit exceeded; retry next minute")
+        if not _check_public_rate_limit(client_host, minute):
+            return await _json_error(429, "Public demo rate limit exceeded; retry next minute")
     origin = request.headers.get("origin")
-    if origin:
-        request_origin = f"{request.url.scheme}://{request.headers.get('host', '').lower()}"
-        normalized_origin = origin.rstrip("/").lower()
-        if normalized_origin != request_origin and normalized_origin not in ALLOWED_CORS_ORIGINS:
+    request_origin = f"{request.url.scheme}://{raw_host.strip().lower()}"
+    if origin is not None:
+        normalized_origin = origin.strip().rstrip("/").lower()
+        if not normalized_origin or normalized_origin in {"null", "*"} or (
+            normalized_origin != request_origin and normalized_origin not in ALLOWED_CORS_ORIGINS
+        ):
             return await _json_error(403, "Cross-origin requests are not allowed")
+    if request.url.path.startswith("/api/") and request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        sec_fetch_site = request.headers.get("sec-fetch-site", "").strip().lower()
+        if sec_fetch_site == "cross-site":
+            return await _json_error(403, "Cross-site state-changing requests are not allowed")
+        referer = request.headers.get("referer")
+        if referer:
+            parsed_ref = urlsplit(referer.strip())
+            ref_origin = f"{parsed_ref.scheme.lower()}://{parsed_ref.netloc.lower()}".rstrip("/")
+            if not parsed_ref.scheme or not parsed_ref.netloc or (
+                ref_origin != request_origin and ref_origin not in ALLOWED_CORS_ORIGINS
+            ):
+                return await _json_error(403, "Cross-origin referer is not allowed")
+        content_type = request.headers.get("content-type", "").split(";", 1)[0].strip().lower()
+        if content_type in {"application/x-www-form-urlencoded", "text/plain"}:
+            return await _json_error(415, "Unsupported form content-type for local API mutation")
+        provided_token = request.headers.get("x-ateval-token")
+        if provided_token is not None:
+            if not hmac.compare_digest(provided_token, LAUNCH_TOKEN):
+                return await _json_error(403, "Invalid per-launch authentication token")
+        elif REQUIRE_LAUNCH_TOKEN:
+            return await _json_error(403, "Per-launch authentication token is required")
+        if origin is None and REQUIRE_ORIGIN_FOR_MUTATIONS and provided_token is None:
+            return await _json_error(403, "Origin header or per-launch token is required for state-changing requests")
     return await call_next(request)
 
 
@@ -264,7 +420,7 @@ app.add_middleware(
     allow_origins=list(ALLOWED_CORS_ORIGINS),
     allow_credentials=False,
     allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type"],
+    allow_headers=["Content-Type", "X-ATEval-Token"],
     max_age=600,
 )
 
@@ -272,6 +428,15 @@ app.add_middleware(
 async def _json_error(status: int, detail: str):
     from fastapi.responses import JSONResponse
     return JSONResponse(status_code=status, content={"detail": detail})
+
+
+@app.exception_handler(sqlite3.OperationalError)
+async def _sqlite_operational_error_handler(_request: Request, exc: sqlite3.OperationalError):
+    from fastapi.responses import JSONResponse
+    message = str(exc).lower()
+    if "locked" in message or "busy" in message:
+        return JSONResponse(status_code=503, content={"detail": "Database is temporarily busy; retry shortly"})
+    return JSONResponse(status_code=503, content={"detail": "Local metadata storage encountered an operational error"})
 
 
 def _dataset_dict(row: sqlite3.Row) -> dict[str, Any]:
@@ -437,6 +602,30 @@ class DatasetImportResponse(BaseModel):
     validation: dict[str, Any]
 
 
+def _finalize_dataset_import(
+    dataset_id: str,
+    dataset_name: str,
+    original_name: str,
+    destination: Path,
+    suffix: str,
+    sha256_hex: str,
+    size: int,
+) -> dict[str, Any]:
+    validation = _parse_dataset(destination, suffix)
+    created = now_utc()
+    with get_db() as db:
+        db.execute(
+            "INSERT INTO datasets VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (dataset_id, dataset_name, original_name, str(destination), sha256_hex, size,
+             validation["row_count"], json.dumps(validation), created),
+        )
+    return {
+        "id": dataset_id, "name": dataset_name, "original_filename": original_name,
+        "sha256": sha256_hex, "size_bytes": size, "row_count": validation["row_count"],
+        "created_at": created, "validation": validation,
+    }
+
+
 @app.post("/api/v1/datasets/import", response_model=DatasetImportResponse)
 async def import_dataset(file: UploadFile = File(...), name: str | None = None):
     original_name = Path(file.filename or "dataset").name
@@ -458,18 +647,17 @@ async def import_dataset(file: UploadFile = File(...), name: str | None = None):
                 output.write(chunk)
         if size == 0:
             raise HTTPException(status_code=422, detail="The selected file is empty")
-        validation = _parse_dataset(destination, suffix)
-        created = now_utc()
         dataset_name = (name or Path(original_name).stem).strip()[:120] or "Imported dataset"
-        with get_db() as db:
-            db.execute(
-                "INSERT INTO datasets VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (dataset_id, dataset_name, original_name, str(destination), digest.hexdigest(), size,
-                 validation["row_count"], json.dumps(validation), created),
-            )
-        return {"id": dataset_id, "name": dataset_name, "original_filename": original_name,
-                "sha256": digest.hexdigest(), "size_bytes": size, "row_count": validation["row_count"],
-                "created_at": created, "validation": validation}
+        return await run_in_threadpool(
+            _finalize_dataset_import,
+            dataset_id,
+            dataset_name,
+            original_name,
+            destination,
+            suffix,
+            digest.hexdigest(),
+            size,
+        )
     except HTTPException:
         destination.unlink(missing_ok=True)
         raise
@@ -546,6 +734,9 @@ class RevisionProposalRequest(BaseModel):
     author_requested_edit: bool = False
     protected_terminology: list[str] = Field(default_factory=list, max_length=100)
     citations: list[str] = Field(default_factory=list, max_length=100)
+    paragraph_id: str | None = Field(default=None, max_length=120)
+    target_start: int | None = Field(default=None, ge=0)
+    target_end: int | None = Field(default=None, ge=0)
 
 
 class ManuscriptEditValidationRequest(BaseModel):
@@ -609,18 +800,62 @@ def writing_status():
         "remote_models": False,
         "model_downloads_automatic": False,
         "source_text_saved_by_analysis": False,
-        "revision_intent_model_available": REVISION_MODEL_PATH.is_file() and REVISION_MODEL_METADATA.is_file() and importlib.util.find_spec("sklearn") is not None,
-        "revision_intent_model_dependency_available": importlib.util.find_spec("sklearn") is not None,
+        "revision_intent_model_available": REVISION_MODEL_PATH.is_file() and REVISION_MODEL_METADATA.is_file(),
+        "revision_intent_model_dependency_available": True,
         "neural_revision": neural_revision,
     }
+
+
+def _resolve_revision_target_offsets(
+    paragraph: str,
+    sentence: str,
+    target_start: int | None,
+    target_end: int | None,
+) -> tuple[int, int]:
+    """Resolve and validate canonical Unicode code-point offsets for a target sentence."""
+    if (target_start is None) != (target_end is None):
+        raise HTTPException(
+            status_code=422,
+            detail="Both target_start and target_end must be supplied together when specifying offsets",
+        )
+    if target_start is not None and target_end is not None:
+        if target_start < 0 or target_end <= target_start or target_end > len(paragraph):
+            raise HTTPException(
+                status_code=422,
+                detail="Supplied target_start and target_end code-point offsets are out of bounds for paragraph_context",
+            )
+        if paragraph[target_start:target_end] != sentence:
+            raise HTTPException(
+                status_code=422,
+                detail="Stale or mismatched target offsets: paragraph_context[target_start:target_end] does not match sentence",
+            )
+        return target_start, target_end
+
+    matches: list[int] = []
+    search_pos = 0
+    while True:
+        idx = paragraph.find(sentence, search_pos)
+        if idx < 0:
+            break
+        matches.append(idx)
+        search_pos = idx + 1
+    if not matches:
+        raise HTTPException(status_code=422, detail="The target sentence must occur in the supplied paragraph context")
+    if len(matches) > 1:
+        raise HTTPException(
+            status_code=409,
+            detail="Target sentence occurs multiple times in paragraph_context; supply explicit target_start and target_end code-point offsets",
+        )
+    start = matches[0]
+    return start, start + len(sentence)
 
 
 @app.post("/api/v1/writing/revise")
 def writing_revision_proposal(payload: RevisionProposalRequest):
     paragraph = payload.paragraph_context or payload.sentence
-    target_start = paragraph.find(payload.sentence)
-    if target_start < 0:
-        raise HTTPException(status_code=422, detail="The target sentence must occur exactly in the supplied paragraph context")
+    target_start, target_end = _resolve_revision_target_offsets(
+        paragraph, payload.sentence, payload.target_start, payload.target_end
+    )
     try:
         gate = revision_necessity_gate(
             selected_text=payload.sentence,
@@ -645,14 +880,19 @@ def writing_revision_proposal(payload: RevisionProposalRequest):
         result = engine.revise(
             paragraph,
             target_start=target_start,
-            target_end=target_start + len(payload.sentence),
+            target_end=target_end,
             intention=payload.intention,
             author_requested_edit=payload.author_requested_edit,
             protected_terms=tuple(payload.protected_terminology),
             citations=tuple(payload.citations),
             section=payload.section_type,
         )
-        return result.to_dict()
+        response = result.to_dict()
+        response["paragraph_id"] = payload.paragraph_id
+        response["target_start"] = target_start
+        response["target_end"] = target_end
+        response["offset_unit"] = "unicode_code_points"
+        return response
     except (ValueError, RuntimeError, OSError) as exc:
         raise HTTPException(status_code=503, detail=f"Local XtraGPT revision failed: {exc}") from exc
 
@@ -722,12 +962,11 @@ def writing_revision_intent(payload: RevisionIntentRequest):
     if not REVISION_MODEL_PATH.is_file() or not REVISION_MODEL_METADATA.is_file():
         raise HTTPException(status_code=503, detail="The trained IteraTeR intent model is not installed")
     try:
-        import joblib
-        metadata = json.loads(REVISION_MODEL_METADATA.read_text(encoding="utf-8"))
-        digest = hashlib.sha256(REVISION_MODEL_PATH.read_bytes()).hexdigest()
-        if digest != metadata.get("sha256"):
-            raise HTTPException(status_code=503, detail="Intent model checksum does not match its metadata")
-        model = joblib.load(REVISION_MODEL_PATH)
+        model = load_declarative_model(
+            REVISION_MODEL_PATH,
+            REVISION_MODEL_METADATA,
+            allowed_root=ALLOWED_MODEL_ROOT,
+        )
         from types import SimpleNamespace
         record = SimpleNamespace(
             section_type=payload.section_type,
@@ -743,7 +982,7 @@ def writing_revision_intent(payload: RevisionIntentRequest):
         label = classes[best]
         score = float(probabilities[best])
         return {
-            "model": "IteraTeR-HUMAN grouped local word/character TF-IDF logistic regression",
+            "model": "IteraTeR-HUMAN grouped local word/character TF-IDF logistic regression (declarative JSON)",
             "predicted_intent": label,
             "top_class_score": score,
             "score_kind": "uncalibrated LogisticRegression predict_proba output; not a probability of correctness",
@@ -780,12 +1019,17 @@ async def writing_ingest(file: UploadFile = File(...)):
         content = await file.read(MAX_UPLOAD_BYTES + 1)
         if len(content) > MAX_UPLOAD_BYTES:
             raise HTTPException(status_code=413, detail=f"Upload exceeds the {MAX_UPLOAD_BYTES}-byte limit")
-        result = extract_document(filename, content)
+        result = await run_in_threadpool(extract_document, filename, content)
     except (ValueError, RuntimeError) as exc:
         raise HTTPException(status_code=415 if "optional" in str(exc) else 422, detail=str(exc)) from exc
     finally:
         await file.close()
     return result
+
+
+def _analyze_manuscript_sync(filename: str, content: bytes) -> dict[str, Any]:
+    bundle = import_manuscript(filename, content)
+    return analyze_manuscript(bundle, requested_config={"detectors_requested": "registered methods", "editing_requested": False})
 
 
 @app.post("/api/v1/manuscripts/analyze")
@@ -796,8 +1040,7 @@ async def manuscript_analyze(file: UploadFile = File(...)):
         content = await file.read(MAX_UPLOAD_BYTES + 1)
         if len(content) > MAX_UPLOAD_BYTES:
             raise HTTPException(status_code=413, detail=f"Manuscript exceeds the {MAX_UPLOAD_BYTES}-byte upload limit")
-        bundle = import_manuscript(filename, content)
-        result = analyze_manuscript(bundle, requested_config={"detectors_requested": "registered methods", "editing_requested": False})
+        result = await run_in_threadpool(_analyze_manuscript_sync, filename, content)
     except (ValueError, TypeError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except (RuntimeError, ImportError) as exc:
@@ -822,18 +1065,35 @@ def analyze_public_synthetic_sample():
     return analyze_manuscript(bundle, requested_config={"detectors_requested": "registered methods", "editing_requested": False})
 
 
+def _export_manuscript_sync(filename: str, content: bytes, accepted_edits: str, export_format: str) -> tuple[bytes, str, str]:
+    fmt = export_format.strip().lower()
+    if fmt == "html":
+        bundle = import_manuscript(filename, content)
+        report = analyze_manuscript(bundle, requested_config={"detectors_requested": "registered methods", "editing_requested": False})
+        return export_html_report(report)
+    if fmt in {"reviewed", "source"}:
+        patches = json.loads(accepted_edits)
+        if not isinstance(patches, list) or len(patches) > 5000:
+            raise ValueError("accepted_edits must be a list containing at most 5,000 reviewed edits")
+        return export_reviewed_manuscript(filename, content, patches)
+    raise ValueError("export_format must be 'reviewed' or 'html'")
+
+
 @app.post("/api/v1/manuscripts/export")
-async def manuscript_export(file: UploadFile = File(...), accepted_edits: str = Form(...)):
-    """Export individually approved patches into the original writable format."""
+async def manuscript_export(
+    file: UploadFile = File(...),
+    accepted_edits: str = Form("[]"),
+    export_format: str = Form("reviewed"),
+):
+    """Export individually approved patches or a standalone analysis HTML report."""
     filename = upload_basename(file.filename)
     try:
         content = await file.read(MAX_UPLOAD_BYTES + 1)
         if len(content) > MAX_UPLOAD_BYTES:
             raise HTTPException(status_code=413, detail=f"Upload exceeds the {MAX_UPLOAD_BYTES}-byte limit")
-        patches = json.loads(accepted_edits)
-        if not isinstance(patches, list) or len(patches) > 5000:
-            raise ValueError("accepted_edits must be a list containing at most 5,000 reviewed edits")
-        output, media_type, output_name = export_reviewed_manuscript(filename, content, patches)
+        output, media_type, output_name = await run_in_threadpool(
+            _export_manuscript_sync, filename, content, accepted_edits, export_format
+        )
     except json.JSONDecodeError as exc:
         raise HTTPException(status_code=422, detail="accepted_edits must be valid JSON") from exc
     except (ValueError, TypeError) as exc:
@@ -842,7 +1102,12 @@ async def manuscript_export(file: UploadFile = File(...), accepted_edits: str = 
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     finally:
         await file.close()
-    headers = {"Content-Disposition": f'attachment; filename="{output_name}"'}
+    headers = {
+        "Content-Disposition": build_content_disposition(output_name),
+        "X-Content-Type-Options": "nosniff",
+        "Cache-Control": "no-store",
+        "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; img-src data:; sandbox",
+    }
     return StreamingResponse(io.BytesIO(output), media_type=media_type, headers=headers)
 
 
@@ -930,13 +1195,124 @@ def create_experiment_draft(payload: ExperimentDraft):
             "created_at": created, "updated_at": created}
 
 
-@app.post("/api/v1/experiments/{experiment_id}/run")
-def run_experiment(experiment_id: str):
+def _execute_research_experiment_sync(experiment_id: str) -> dict[str, Any]:
     with get_db() as db:
-        exists = db.execute("SELECT 1 FROM experiments WHERE id = ?", (experiment_id,)).fetchone()
-    if not exists:
-        raise HTTPException(status_code=404, detail="Experiment not found")
-    raise HTTPException(status_code=409, detail="No detector is currently implemented and tested; this draft cannot run yet")
+        exp_row = db.execute("SELECT * FROM experiments WHERE id = ?", (experiment_id,)).fetchone()
+        if exp_row is None:
+            raise HTTPException(status_code=404, detail="Experiment not found")
+        if not RESEARCH_EXPERIMENTS_ENABLED or PUBLIC_DEMO_MODE:
+            raise HTTPException(
+                status_code=409,
+                detail="No detector is currently validated for production use (stylometric baseline AUROC 0.5541, human FPR 0.2467); set ATEVAL_ENABLE_RESEARCH_EXPERIMENTS=1 in local research mode to run experimental baseline measurements",
+            )
+        if exp_row["status"] != "draft":
+            raise HTTPException(status_code=409, detail=f"Only draft experiments can be executed (current status: {exp_row['status']})")
+        dataset_id = exp_row["dataset_id"]
+        if not dataset_id:
+            raise HTTPException(status_code=422, detail="Experiment draft must reference a validated dataset_id before running")
+        ds_row = db.execute("SELECT * FROM datasets WHERE id = ?", (dataset_id,)).fetchone()
+        if ds_row is None:
+            raise HTTPException(status_code=404, detail="Linked dataset not found")
+        validation = json.loads(ds_row["validation_json"])
+        if not validation.get("schema_valid") or not validation.get("source_distribution"):
+            raise HTTPException(
+                status_code=422,
+                detail="Dataset must pass schema and source provenance validation before research execution",
+            )
+        stored_path = Path(ds_row["stored_path"]).resolve()
+        if RAW_DATA_DIR.resolve() not in stored_path.parents or not stored_path.is_file():
+            raise HTTPException(status_code=422, detail="Dataset file is missing or outside managed storage")
+        config = json.loads(exp_row["config_json"])
+        exp_name = exp_row["name"]
+        ds_sha256 = ds_row["sha256"]
+
+    scores_by_label: dict[str, list[float]] = {}
+    evaluated_rows = 0
+    suffix = stored_path.suffix.lower()
+    if suffix == ".csv":
+        with stored_path.open("r", encoding="utf-8-sig", newline="") as handle:
+            for row in csv.DictReader(handle):
+                record = DatasetRecord.from_mapping(row)
+                res = evaluate_stylometric_baseline(record.text)
+                scores_by_label.setdefault(record.label, []).append(float(res["signal_score"]))
+                evaluated_rows += 1
+    else:
+        with stored_path.open("r", encoding="utf-8-sig") as handle:
+            for line in handle:
+                if not line.strip():
+                    continue
+                record = DatasetRecord.from_mapping(json.loads(line))
+                res = evaluate_stylometric_baseline(record.text)
+                scores_by_label.setdefault(record.label, []).append(float(res["signal_score"]))
+                evaluated_rows += 1
+
+    import statistics as _stats
+    summary_by_label = {
+        label: {
+            "count": len(vals),
+            "mean_signal": round(_stats.mean(vals), 4) if vals else 0.0,
+            "median_signal": round(_stats.median(vals), 4) if vals else 0.0,
+        }
+        for label, vals in sorted(scores_by_label.items())
+    }
+    completed_at = now_utc()
+    report_id = uuid.uuid4().hex
+    report_payload = {
+        "schema": "ateval-research-experiment-v1",
+        "experiment_id": experiment_id,
+        "experiment_name": exp_name,
+        "measurement_mode": "research_measurement_only",
+        "definitive_authorship_score": False,
+        "detector": {
+            "name": "stylometric-baseline",
+            "version": "m5.0.0",
+            "status": "experimental_unvalidated",
+            "benchmark_evidence": {"auroc": 0.5541, "human_fpr": 0.2467},
+        },
+        "dataset": {
+            "dataset_id": dataset_id,
+            "dataset_sha256": ds_sha256,
+            "evaluated_rows": evaluated_rows,
+            "source_distribution": validation.get("source_distribution", {}),
+        },
+        "configuration": config,
+        "measurements_by_label": summary_by_label,
+        "completed_at": completed_at,
+        "warning": "Research measurements only. The stylometric baseline (AUROC 0.5541, human FPR 0.2467) must never be used as a definitive AI-authorship detector.",
+    }
+    with get_db() as db:
+        cursor = db.execute(
+            "UPDATE experiments SET status = 'completed', updated_at = ? WHERE id = ? AND status = 'draft'",
+            (completed_at, experiment_id),
+        )
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=409, detail="Experiment state changed concurrently; could not complete draft")
+        db.execute(
+            "INSERT INTO reports VALUES (?, ?, ?, ?, ?)",
+            (report_id, "research_experiment", f"Research measurement · {exp_name}", json.dumps(report_payload, ensure_ascii=False), completed_at),
+        )
+    return {
+        "id": experiment_id,
+        "name": exp_name,
+        "status": "completed",
+        "dataset_id": dataset_id,
+        "configuration": config,
+        "updated_at": completed_at,
+        "report_id": report_id,
+        "research_measurement": report_payload,
+    }
+
+
+@app.post("/api/v1/experiments/{experiment_id}/run")
+async def run_experiment(experiment_id: str, request: Request):
+    if RESEARCH_EXPERIMENTS_ENABLED and not PUBLIC_DEMO_MODE:
+        supplied_token = request.headers.get("x-ateval-token", "")
+        if not supplied_token or not hmac.compare_digest(supplied_token, LAUNCH_TOKEN):
+            raise HTTPException(
+                status_code=403,
+                detail="Research experiment execution requires a valid per-launch X-ATEval-Token header",
+            )
+    return await run_in_threadpool(_execute_research_experiment_sync, experiment_id)
 
 
 @app.post("/api/v1/experiments/{experiment_id}/cancel")
@@ -949,14 +1325,19 @@ def cancel_experiment(experiment_id: str):
     return {"id": experiment_id, "status": "cancelled"}
 
 
-@app.get("/api/v1/events/{experiment_id}")
-async def experiment_events(experiment_id: str):
+def _get_experiment_event_snapshot(experiment_id: str) -> dict[str, Any] | None:
     with get_db() as db:
         row = db.execute("SELECT id, status, updated_at FROM experiments WHERE id = ?", (experiment_id,)).fetchone()
-    if row is None:
+    return dict(row) if row is not None else None
+
+
+@app.get("/api/v1/events/{experiment_id}")
+async def experiment_events(experiment_id: str):
+    snapshot = await run_in_threadpool(_get_experiment_event_snapshot, experiment_id)
+    if snapshot is None:
         raise HTTPException(status_code=404, detail="Experiment not found")
     async def event_stream() -> AsyncIterator[str]:
-        yield f"event: status\ndata: {json.dumps(dict(row))}\n\n"
+        yield f"event: status\ndata: {json.dumps(snapshot)}\n\n"
         yield ": draft has no running worker\n\n"
     return StreamingResponse(event_stream(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
