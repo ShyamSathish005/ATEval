@@ -33,6 +33,8 @@ def extract_document(filename: str, content: bytes) -> dict[str, Any]:
             from docx import Document
         except ImportError as exc:
             raise RuntimeError("DOCX support is optional. Install it with `python -m pip install -e '.[writing-docs]'`.") from exc
+        from ..manuscript_analysis.documents import validate_docx_archive
+        validate_docx_archive(content)
         try:
             doc = Document(io.BytesIO(content))
             blocks: list[str] = []

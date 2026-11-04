@@ -20,7 +20,13 @@ from typing import Any
 from ..writing.documents import MAX_DOCUMENT_BYTES, extract_document
 
 MAX_PROJECT_FILES = 2000
+MAX_PROJECT_SINGLE_FILE_BYTES = 25 * 1024 * 1024
 MAX_PROJECT_EXPANDED_BYTES = 100 * 1024 * 1024
+MAX_DOCX_FILES = 500
+MAX_DOCX_SINGLE_FILE_BYTES = 16 * 1024 * 1024
+MAX_DOCX_EXPANDED_BYTES = 50 * 1024 * 1024
+MAX_COMPRESSION_RATIO = 200.0
+COMPRESSION_RATIO_MIN_EXPANDED_BYTES = 64 * 1024
 SUPPORTED = {".txt", ".tex", ".zip", ".docx", ".pdf"}
 MATH_OR_NONPROSE_ENVS = {"equation", "equation*", "align", "align*", "gather", "gather*", "multline", "multline*", "math", "displaymath", "verbatim", "verbatim*", "lstlisting", "minted", "tikzpicture", "figure", "figure*", "table", "table*", "algorithm"}
 DROP_COMMANDS = {"cite", "citep", "citet", "parencite", "textcite", "autocite", "ref", "eqref", "cref", "Cref", "label", "bibitem", "bibliography", "addbibresource", "url", "includegraphics", "bibliographystyle", "documentclass", "usepackage", "newcommand", "renewcommand", "providecommand", "def", "newenvironment"}
@@ -77,35 +83,98 @@ def _tex_refs(content: str) -> set[str]:
     return refs
 
 
-def _zip_files(content: bytes) -> dict[str, bytes]:
+def _read_bounded_zip(
+    content: bytes,
+    *,
+    label: str,
+    max_files: int,
+    max_single_bytes: int,
+    max_expanded_bytes: int,
+    retain_files: bool = True,
+) -> dict[str, bytes]:
+    if len(content) > MAX_DOCUMENT_BYTES:
+        raise ValueError(f"{label} exceeds the 25 MiB local import limit")
     try:
         archive = zipfile.ZipFile(io.BytesIO(content))
     except (zipfile.BadZipFile, OSError) as exc:
-        raise ValueError("The LaTeX project ZIP is malformed") from exc
-    infos = [item for item in archive.infolist() if not item.is_dir()]
-    if len(infos) > MAX_PROJECT_FILES:
-        raise ValueError(f"LaTeX project ZIP exceeds the {MAX_PROJECT_FILES}-file limit")
-    total = sum(item.file_size for item in infos)
-    if total > MAX_PROJECT_EXPANDED_BYTES:
-        raise ValueError("LaTeX project ZIP expands beyond the 100 MiB safety limit")
-    files: dict[str, bytes] = {}
-    for info in infos:
-        if "\\" in info.filename:
-            raise ValueError("LaTeX project ZIP contains an unsafe file path")
-        windows_path = PureWindowsPath(info.filename)
-        if windows_path.is_absolute() or windows_path.drive or ".." in windows_path.parts:
-            raise ValueError("LaTeX project ZIP contains an unsafe file path")
-        path = PurePosixPath(info.filename)
-        if path.is_absolute() or ".." in path.parts or not path.parts:
-            raise ValueError("LaTeX project ZIP contains an unsafe file path")
-        mode = info.external_attr >> 16
-        if stat.S_ISLNK(mode):
-            raise ValueError("LaTeX project ZIP may not contain symbolic links")
-        normalized = path.as_posix()
-        if normalized in files:
-            raise ValueError(f"LaTeX project ZIP contains a duplicate path: {normalized}")
-        files[normalized] = archive.read(info)
-    return files
+        raise ValueError(f"The {label} is malformed") from exc
+    with archive:
+        all_infos = archive.infolist()
+        if len(all_infos) > max_files * 2:
+            raise ValueError(f"{label} exceeds the {max_files}-file limit")
+        infos = [item for item in all_infos if not item.is_dir()]
+        if len(infos) > max_files:
+            raise ValueError(f"{label} exceeds the {max_files}-file limit")
+        declared_total = sum(max(0, item.file_size) for item in infos)
+        if declared_total > max_expanded_bytes:
+            raise ValueError(f"{label} expands beyond the safety limit")
+        files: dict[str, bytes] = {}
+        seen_paths: set[str] = set()
+        actual_total = 0
+        for info in infos:
+            if "\\" in info.filename or "\x00" in info.filename:
+                raise ValueError(f"{label} contains an unsafe file path")
+            windows_path = PureWindowsPath(info.filename)
+            if windows_path.is_absolute() or windows_path.drive or ".." in windows_path.parts:
+                raise ValueError(f"{label} contains an unsafe file path")
+            path = PurePosixPath(info.filename)
+            if path.is_absolute() or ".." in path.parts or not path.parts:
+                raise ValueError(f"{label} contains an unsafe file path")
+            mode = info.external_attr >> 16
+            if stat.S_ISLNK(mode):
+                raise ValueError(f"{label} may not contain symbolic links")
+            normalized = path.as_posix()
+            if normalized in seen_paths:
+                raise ValueError(f"{label} contains a duplicate path: {normalized}")
+            seen_paths.add(normalized)
+            if info.file_size > max_single_bytes:
+                raise ValueError(f"{label} entry {normalized} exceeds the single-file expanded size limit")
+            chunks: list[bytes] = []
+            entry_bytes = 0
+            try:
+                with archive.open(info, "r") as stream:
+                    while chunk := stream.read(64 * 1024):
+                        entry_bytes += len(chunk)
+                        actual_total += len(chunk)
+                        if entry_bytes > max_single_bytes:
+                            raise ValueError(f"{label} entry {normalized} expands beyond the single-file safety limit")
+                        if actual_total > max_expanded_bytes:
+                            raise ValueError(f"{label} expands beyond the safety limit")
+                        if (
+                            entry_bytes >= COMPRESSION_RATIO_MIN_EXPANDED_BYTES
+                            and entry_bytes / max(1, info.compress_size) > MAX_COMPRESSION_RATIO
+                        ):
+                            raise ValueError(f"{label} entry {normalized} exceeds the maximum safe compression ratio")
+                        if retain_files:
+                            chunks.append(chunk)
+            except (zipfile.BadZipFile, RuntimeError, OSError, EOFError) as exc:
+                raise ValueError(f"The {label} is malformed or encrypted") from exc
+            if retain_files:
+                files[normalized] = b"".join(chunks)
+        return files
+
+
+def validate_docx_archive(content: bytes) -> None:
+    """Validate DOCX package entries and decompression bounds before XML parsing."""
+    _read_bounded_zip(
+        content,
+        label="DOCX document",
+        max_files=MAX_DOCX_FILES,
+        max_single_bytes=MAX_DOCX_SINGLE_FILE_BYTES,
+        max_expanded_bytes=MAX_DOCX_EXPANDED_BYTES,
+        retain_files=False,
+    )
+
+
+def _zip_files(content: bytes) -> dict[str, bytes]:
+    return _read_bounded_zip(
+        content,
+        label="LaTeX project ZIP",
+        max_files=MAX_PROJECT_FILES,
+        max_single_bytes=MAX_PROJECT_SINGLE_FILE_BYTES,
+        max_expanded_bytes=MAX_PROJECT_EXPANDED_BYTES,
+        retain_files=True,
+    )
 
 
 def _choose_root(sources: dict[str, str]) -> str:
@@ -328,6 +397,7 @@ def _docx_projection(content: bytes) -> tuple[str, list[SourcePointer | None], l
         from docx import Document
     except ImportError as exc:
         raise RuntimeError("DOCX support is optional. Install it with `python -m pip install -e '.[writing-docs]'`.") from exc
+    validate_docx_archive(content)
     try:
         document = Document(io.BytesIO(content))
     except Exception as exc:
